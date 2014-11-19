@@ -8,7 +8,10 @@
 #define GRAYSCALE_BLACK 0
 #define GRAYSCALE_WHITE 255
 
-#define PAD_SIZE 2
+#define PAD_TOP 2
+#define PAD_LEFT 2
+#define PAD_BOTTOM 1
+#define PAD_RIGHT 1
 
 #define P2(bitmap, row, col) ((bitmap)->data[((row)-1) * (bitmap)->width +  (col)   ])
 #define P3(bitmap, row, col) ((bitmap)->data[((row)-1) * (bitmap)->width + ((col)-1)])
@@ -47,14 +50,21 @@ const char* dst_file_names[NUMBER_OF_FILES] = {"../images/skeletonized/avatar.bm
                                                "../images/skeletonized/tree_3.bmp",
                                                "../images/skeletonized/zebra.bmp"};
 
+typedef struct {
+    uint8_t top;
+    uint8_t bottom;
+    uint8_t left;
+    uint8_t right;
+} Padding;
+
 void print_bitmap_info(const char* fname);
 void grayscale_to_binary(Bitmap* image);
 void binary_to_grayscale(Bitmap* image);
-void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, uint8_t padding_amount);
-void unpad_bitmap(Bitmap** image, uint8_t padding_amount);
+void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding);
+void unpad_bitmap(Bitmap** image, Padding padding);
 void copy_bitmap(Bitmap* src, Bitmap* dst);
-void skeletonize_pass(Bitmap* src, Bitmap* dst);
 void swap_bitmaps(Bitmap** src, Bitmap** dst);
+void skeletonize_pass(Bitmap* src, Bitmap* dst, Padding padding);
 unsigned int skeletonize(const char* src_fname, const char* dst_fname);
 uint8_t is_binary_valued_grayscale_image(Bitmap* image);
 uint8_t is_binary_image(Bitmap* image);
