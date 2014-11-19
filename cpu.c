@@ -264,10 +264,9 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     // Create dst bitmap image (empty for now)
     Bitmap* dst_bitmap = createBitmap(src_bitmap->width, src_bitmap->height, src_bitmap->depth);
 
-
-    // Pad the binary images with PAD_SIZE pixels on each side. This will be
-    // useful when implementing the skeletonization algorithm, because the mask
-    // we use depends on P2 and P4, which also have their own window.
+    // Pad the binary images with pixels on each side. This will be useful when
+    // implementing the skeletonization algorithm, because the mask we use
+    // depends on P2 and P4, which also have their own window.
     Padding padding_amounts;
     padding_amounts.top = PAD_TOP;
     padding_amounts.bottom = PAD_BOTTOM;
