@@ -104,8 +104,10 @@ void skeletonize_pass(Bitmap* src, Bitmap* dst, Padding padding) {
     assert(src->height == dst->height && "src and dst must have same height");
     assert(src->depth == dst->depth && "src and dst must have same depth");
 
-    for (unsigned int row = padding.top; row < src->height - padding.bottom; row++) {
-        for (unsigned int col = padding.left; col < src->width - padding.right; col++) {
+    unsigned int row = 0;
+    unsigned int col = 0;
+    for (row = padding.top; row < src->height - padding.bottom; row++) {
+        for (col = padding.left; col < src->width - padding.right; col++) {
             uint8_t NZ = black_neighbors_around(src, row, col);
             uint8_t TR_P1 = wb_transitions_around(src, row, col);
             uint8_t TR_P2 = wb_transitions_around(src, row-1, col);
@@ -146,7 +148,8 @@ uint8_t wb_transitions_around(Bitmap* bitmap, unsigned int row, unsigned int col
 }
 
 int main(void) {
-    for (unsigned int i = 0; i < NUMBER_OF_FILES; i++) {
+    unsigned int i = 0;
+    for (i = 0; i < NUMBER_OF_FILES; i++) {
         int file_name_len = strlen(src_file_names[i]);
         char* file_name = calloc(file_name_len + 1, sizeof(char));
         strncpy(file_name, src_file_names[i], file_name_len);
