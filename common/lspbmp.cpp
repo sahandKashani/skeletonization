@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>
-#include "lspbmp.h"
+#include "lspbmp.hpp"
 
 /** Bitmap file header */
 typedef struct BMHeader {

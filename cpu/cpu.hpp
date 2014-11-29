@@ -1,9 +1,9 @@
-#ifndef CPU_H
-#define CPU_H
+#ifndef CPU_HPP
+#define CPU_HPP
 
 #include <stdint.h>
-#include "../common/lspbmp.h"
-#include "../common/utils.h"
+#include "../common/lspbmp.hpp"
+#include "../common/utils.hpp"
 
 uint8_t black_neighbors_around(uint8_t* data, unsigned int row, unsigned int col, unsigned int width);
 unsigned int skeletonize(const char* src_fname, const char* dst_fname);

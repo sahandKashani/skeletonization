@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "lspbmp.h"
-#include "utils.h"
+#include "lspbmp.hpp"
+#include "utils.hpp"
 
 // Returns 1 if the 2 input bitmaps are equal, otherwise returns 0.
 uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst) {

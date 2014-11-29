@@ -1,5 +1,5 @@
-#ifndef INCLUDED_LSPBMP_H
-#define INCLUDED_LSPBMP_H
+#ifndef INCLUDED_LSPBMP_HPP
+#define INCLUDED_LSPBMP_HPP
 
 #ifdef __cplusplus
 extern "C"

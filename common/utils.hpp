@@ -1,8 +1,8 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
 #include <stdint.h>
-#include "lspbmp.h"
+#include "lspbmp.hpp"
 
 #define BINARY_BLACK 1
 #define BINARY_WHITE 0

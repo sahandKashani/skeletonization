@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cpu.h"
-#include "../common/files.h"
-#include "../common/utils.h"
+#include "cpu.hpp"
+#include "../common/files.hpp"
+#include "../common/utils.hpp"
 
 #define PAD_TOP 2
 #define PAD_LEFT 2
@@ -148,7 +148,7 @@ int main(void) {
     unsigned int i = 0;
     for (i = 0; i < NUMBER_OF_FILES; i++) {
         int file_name_len = strlen(src_file_names[i]);
-        char* file_name = calloc(file_name_len + 1, sizeof(char));
+        char* file_name = (char*) calloc(file_name_len + 1, sizeof(char));
         strncpy(file_name, src_file_names[i], file_name_len);
         char* base_file_name = basename(file_name);
         printf("%s ", base_file_name);
