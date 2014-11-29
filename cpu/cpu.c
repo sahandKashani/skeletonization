@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cpu.h"
-#include "files.h"
-#include "utils.h"
+#include "../common/files.h"
+#include "../common/utils.h"
 
 #define PAD_TOP 2
 #define PAD_LEFT 2
