@@ -101,10 +101,8 @@ __global__ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width,
     assert(src && "src bitmap must be non-NULL");
     assert(dst && "dst bitmap must be non-NULL");
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = padding.top; row < height - padding.bottom; row++) {
-        for (col = padding.left; col < width - padding.right; col++) {
+    for (unsigned int row = padding.top; row < height - padding.bottom; row++) {
+        for (unsigned int col = padding.left; col < width - padding.right; col++) {
             uint8_t NZ = black_neighbors_around(src, row, col, width);
             uint8_t TR_P1 = wb_transitions_around(src, row, col, width);
             uint8_t TR_P2 = wb_transitions_around(src, row-1, col, width);

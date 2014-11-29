@@ -13,10 +13,8 @@ uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst) {
     assert(src->height == dst->height && "src and dst must have same height");
     assert(src->depth == dst->depth && "src and dst must have same depth");
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < src->height; row++) {
-        for (col = 0; col < src->width; col++) {
+    for (unsigned int row = 0; row < src->height; row++) {
+        for (unsigned int col = 0; col < src->width; col++) {
             if (dst->data[row * src->width + col] != src->data[row * src->width + col]) {
                 return 0;
             }
@@ -32,10 +30,8 @@ void binary_to_grayscale(Bitmap* image) {
     assert(image && "Bitmap must be non-NULL");
     assert(is_binary_image(image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < image->height; row++) {
-        for (col = 0; col < image->width; col++) {
+    for (unsigned int row = 0; row < image->height; row++) {
+        for (unsigned int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             image->data[row * image->width + col] = (value == BINARY_BLACK) ? GRAYSCALE_BLACK : GRAYSCALE_WHITE;
         }
@@ -50,10 +46,8 @@ void copy_bitmap(Bitmap* src, Bitmap* dst) {
     assert(src->height == dst->height && "src and dst must have same height");
     assert(src->depth == dst->depth && "src and dst must have same depth");
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < src->height; row++) {
-        for (col = 0; col < src->width; col++) {
+    for (unsigned int row = 0; row < src->height; row++) {
+        for (unsigned int col = 0; col < src->width; col++) {
             dst->data[row * src->width + col] = src->data[row * src->width + col];
         }
     }
@@ -69,10 +63,8 @@ uint8_t is_binary_image(Bitmap* image) {
         return 0;
     }
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < image->height; row++) {
-        for (col = 0; col < image->width; col++) {
+    for (unsigned int row = 0; row < image->height; row++) {
+        for (unsigned int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             if (!(value == BINARY_BLACK || value == BINARY_WHITE)) {
                 return 0;
@@ -94,10 +86,8 @@ uint8_t is_binary_valued_grayscale_image(Bitmap* image) {
         return 0;
     }
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < image->height; row++) {
-        for (col = 0; col < image->width; col++) {
+    for (unsigned int row = 0; row < image->height; row++) {
+        for (unsigned int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             if (!(value == GRAYSCALE_BLACK || value == GRAYSCALE_WHITE)) {
                 return 0;
@@ -115,10 +105,8 @@ void grayscale_to_binary(Bitmap* image) {
     assert(image && "Bitmap must be non-NULL");
     assert(is_binary_valued_grayscale_image(image) && "Must supply a binary-valued grayscale image: only black (0) and white (255) are allowed");
 
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < image->height; row++) {
-        for (col = 0; col < image->width; col++) {
+    for (unsigned int row = 0; row < image->height; row++) {
+        for (unsigned int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             image->data[row * image->width + col] = (value == GRAYSCALE_BLACK) ? BINARY_BLACK : BINARY_WHITE;
         }
@@ -136,10 +124,8 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
     Bitmap *new_image = createBitmap((*image)->width + (padding.left + padding.right), (*image)->height + (padding.top + padding.bottom), (*image)->depth);
 
     // copy original data into the center of the new buffer
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < new_image->height; row++) {
-        for (col = 0; col < new_image->width; col++) {
+    for (unsigned int row = 0; row < new_image->height; row++) {
+        for (unsigned int col = 0; col < new_image->width; col++) {
 
             uint8_t is_top_row_padding_zone = ( (0 <= row) && (row <= padding.top) );
             uint8_t is_bottom_row_padding_zone = ( ((new_image->height - padding.bottom) <= row) && (row <= (new_image->height-1)) );
@@ -192,10 +178,8 @@ void unpad_bitmap(Bitmap** image, Padding padding) {
     Bitmap *new_image = createBitmap((*image)->width - (padding.left + padding.right), (*image)->height - (padding.top + padding.bottom), (*image)->depth);
 
     // copy data from larger image into the middle of the new buffer
-    unsigned int row = 0;
-    unsigned int col = 0;
-    for (row = 0; row < new_image->height; row++) {
-        for (col = 0; col < new_image->width; col++) {
+    for (unsigned int row = 0; row < new_image->height; row++) {
+        for (unsigned int col = 0; col < new_image->width; col++) {
             new_image->data[row * new_image->width + col] = (*image)->data[(row+padding.top) * ((*image)->width) + (col+padding.left)];
         }
     }
