@@ -146,9 +146,6 @@ uint8_t wb_transitions_around(Bitmap* bitmap, unsigned int row, unsigned int col
 }
 
 int main(void) {
-//    unsigned int image_index = 0;
-//    skeletonize(src_file_names[image_index], dst_file_names[image_index]);
-
     for (unsigned int i = 0; i < NUMBER_OF_FILES; i++) {
         int file_name_len = strlen(src_file_names[i]);
         char* file_name = calloc(file_name_len + 1, sizeof(char));
