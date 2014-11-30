@@ -155,9 +155,9 @@ void print_bitmap_info(const char* fname) {
     assert(bitmap && "Bitmap has to be non-NULL");
 
     printf("%s\n", fname);
-    printf("    width  = %d\n", bitmap->width);
-    printf("    height = %d\n", bitmap->height);
-    printf("    depth  = %d\n", bitmap->depth);
+    printf("    width  = %u\n", bitmap->width);
+    printf("    height = %u\n", bitmap->height);
+    printf("    depth  = %u\n", bitmap->depth);
 
     free(bitmap);
 }
