@@ -162,9 +162,9 @@ void print_bitmap_info(const char* fname) {
     free(bitmap);
 }
 
-// Swaps 2 bitmaps by exchanging their pointers.
-void swap_bitmaps(Bitmap** src, Bitmap** dst) {
-    Bitmap* tmp = *dst;
+// Swaps 2 pointers.
+void swap_bitmaps(void** src, void** dst) {
+    void* tmp = *dst;
     *dst = *src;
     *src = tmp;
 }
