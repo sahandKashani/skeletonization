@@ -171,8 +171,9 @@ void swap_bitmaps(Bitmap** src, Bitmap** dst) {
 
 // Unpads the image given as input by removing the amount of padding provided as
 // input.
-void unpad_bitmap(Bitmap** image, Padding padding) {
+void unpad_binary_bitmap(Bitmap** image, Padding padding) {
     assert(*image && "Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
 
     // allocate buffer for image data with less rows and less columns
     Bitmap *new_image = createBitmap((*image)->width - (padding.left + padding.right), (*image)->height - (padding.top + padding.bottom), (*image)->depth);

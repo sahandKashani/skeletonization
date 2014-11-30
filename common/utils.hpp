@@ -25,6 +25,6 @@ void grayscale_to_binary(Bitmap* image);
 void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding);
 void print_bitmap_info(const char* fname);
 void swap_bitmaps(Bitmap** src, Bitmap** dst);
-void unpad_bitmap(Bitmap** image, Padding padding);
+void unpad_binary_bitmap(Bitmap** image, Padding padding);
 
 #endif

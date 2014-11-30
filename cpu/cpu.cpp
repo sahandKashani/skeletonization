@@ -81,7 +81,7 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
 
     // Remove extra padding that was added to the images (don't care about
     // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_bitmap(&dst_bitmap, padding_amounts);
+    unpad_binary_bitmap(&dst_bitmap, padding_amounts);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(dst_bitmap);
