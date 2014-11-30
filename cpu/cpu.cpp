@@ -72,7 +72,7 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     unsigned int iterations = 0;
     do {
         skeletonize_pass(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding);
-        swap_bitmaps(&src_bitmap, &dst_bitmap);
+        swap_bitmaps((void**) &src_bitmap, (void**) &dst_bitmap);
 
         iterations++;
         printf(".");
