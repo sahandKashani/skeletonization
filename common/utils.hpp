@@ -10,10 +10,10 @@
 #define GRAYSCALE_WHITE 255
 
 typedef struct {
-    uint8_t top;
-    uint8_t bottom;
-    uint8_t left;
-    uint8_t right;
+    unsigned int top;
+    unsigned int bottom;
+    unsigned int left;
+    unsigned int right;
 } Padding;
 
 uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst);
