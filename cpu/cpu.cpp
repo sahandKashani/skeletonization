@@ -60,18 +60,18 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     // Pad the binary images with pixels on each side. This will be useful when
     // implementing the skeletonization algorithm, because the mask we use
     // depends on P2 and P4, which also have their own window.
-    Padding padding_amounts;
-    padding_amounts.top = PAD_TOP;
-    padding_amounts.bottom = PAD_BOTTOM;
-    padding_amounts.left = PAD_LEFT;
-    padding_amounts.right = PAD_RIGHT;
-    pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding_amounts);
-    pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding_amounts);
+    Padding padding;
+    padding.top = PAD_TOP;
+    padding.bottom = PAD_BOTTOM;
+    padding.left = PAD_LEFT;
+    padding.right = PAD_RIGHT;
+    pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding);
+    pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding);
 
     // iterative thinning algorithm
     unsigned int iterations = 0;
     do {
-        skeletonize_pass(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding_amounts);
+        skeletonize_pass(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding);
         swap_bitmaps(&src_bitmap, &dst_bitmap);
 
         iterations++;
@@ -81,7 +81,7 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
 
     // Remove extra padding that was added to the images (don't care about
     // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_binary_bitmap(&dst_bitmap, padding_amounts);
+    unpad_binary_bitmap(&dst_bitmap, padding);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(dst_bitmap);
