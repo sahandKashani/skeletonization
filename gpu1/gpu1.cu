@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <libgen.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,10 +9,11 @@
 #include "../common/files.hpp"
 #include "../common/utils.hpp"
 
+#define THREADS_PER_BLOCK_X 32
+#define THREADS_PER_BLOCK_Y 32
+
 #define PAD_TOP 2
 #define PAD_LEFT 2
-#define PAD_BOTTOM 1
-#define PAD_RIGHT 1
 
 #define P2(data, row, col, width) ((data)[((row)-1) * width +  (col)   ])
 #define P3(data, row, col, width) ((data)[((row)-1) * width + ((col)-1)])
@@ -62,17 +64,31 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     // depends on P2 and P4, which also have their own window.
     Padding padding_amounts;
     padding_amounts.top = PAD_TOP;
-    padding_amounts.bottom = PAD_BOTTOM;
     padding_amounts.left = PAD_LEFT;
-    padding_amounts.right = PAD_RIGHT;
 
+    // Dimensions of computing elements on the CUDA device.
+    // Computing the grid dimensions depends on PAD_TOP and PAD_LEFT.
+    unsigned int block_dim_x = THREADS_PER_BLOCK_X;
+    unsigned int block_dim_y = THREADS_PER_BLOCK_Y;
+    unsigned int grid_dim_x = (unsigned int) ceil((src_bitmap->width + padding_amounts.left) / ((double) block_dim_x));
+    unsigned int grid_dim_y = (unsigned int) ceil((src_bitmap->height + padding_amounts.top)/ ((double) block_dim_y));
+    dim3 block_dim(block_dim_x, block_dim_y);
+    dim3 grid_dim(grid_dim_x, grid_dim_y);
+
+    // Can now calculate padding for the right and bottom parts of the image,
+    // since we have the grid dimensions.
+    padding_amounts.right = ((unsigned int) ceil((src_bitmap->width + padding_amounts.left) / ((double) grid_dim_x))) - (src_bitmap->width + padding_amounts.left);
+    padding_amounts.bottom = ((unsigned int) ceil((src_bitmap->height + padding_amounts.top) / ((double) grid_dim_y))) - (src_bitmap->height + padding_amounts.top);
     pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding_amounts);
     pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding_amounts);
+
+    // allocate memory on device
+    // TODO
 
     // iterative thinning algorithm
     unsigned int iterations = 0;
     do {
-        skeletonize_pass<<<16, 128>>>(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding_amounts);
+        skeletonize_pass<<<grid_dim, block_dim>>>(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding_amounts);
         swap_bitmaps(&src_bitmap, &dst_bitmap);
 
         iterations++;
