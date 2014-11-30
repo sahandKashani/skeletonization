@@ -170,8 +170,7 @@ __device__ uint8_t wb_transitions_around(uint8_t* d_data, unsigned int row, unsi
 }
 
 int main(void) {
-    // for (unsigned int i = 0; i < NUMBER_OF_FILES; i++) {
-    for (unsigned int i = 0; i < 1; i++) {
+    for (unsigned int i = 0; i < NUMBER_OF_FILES; i++) {
         int file_name_len = strlen(src_file_names[i]);
         char* file_name = (char*) calloc(file_name_len + 1, sizeof(char));
         strncpy(file_name, src_file_names[i], file_name_len);
