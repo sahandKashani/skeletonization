@@ -65,7 +65,6 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     padding_amounts.bottom = PAD_BOTTOM;
     padding_amounts.left = PAD_LEFT;
     padding_amounts.right = PAD_RIGHT;
-
     pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding_amounts);
     pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding_amounts);
 
