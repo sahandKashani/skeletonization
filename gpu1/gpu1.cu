@@ -14,8 +14,8 @@
 
 #define PAD_TOP 2
 #define PAD_LEFT 2
-#define PAD_BOTTOM_MIN 1
-#define PAD_RIGHT_MIN 1
+#define PAD_BOTTOM 1
+#define PAD_RIGHT 1
 
 #define P2(data, row, col, width) ((data)[((row)-1) * width +  (col)   ])
 #define P3(data, row, col, width) ((data)[((row)-1) * width + ((col)-1)])
@@ -65,21 +65,23 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     // Computing the grid dimensions depends on PAD_TOP and PAD_LEFT.
     unsigned int block_dim_x = THREADS_PER_BLOCK_X;
     unsigned int block_dim_y = THREADS_PER_BLOCK_Y;
-    unsigned int grid_dim_x = (unsigned int) ceil((src_bitmap->width + PAD_LEFT + PAD_RIGHT_MIN) / ((double) block_dim_x));
-    unsigned int grid_dim_y = (unsigned int) ceil((src_bitmap->height + PAD_TOP + PAD_BOTTOM_MIN)/ ((double) block_dim_y));
+    unsigned int grid_dim_x = (unsigned int) ceil((src_bitmap->width) / ((double) block_dim_x));
+    unsigned int grid_dim_y = (unsigned int) ceil((src_bitmap->height)/ ((double) block_dim_y));
     dim3 block_dim(block_dim_x, block_dim_y);
     dim3 grid_dim(grid_dim_x, grid_dim_y);
 
     // Pad the binary images with pixels on each side. This will be useful when
     // implementing the skeletonization algorithm, because the mask we use
     // depends on P2 and P4, which also have their own window.
-    Padding padding_amounts;
-    padding_amounts.top = PAD_TOP;
-    padding_amounts.bottom = (grid_dim_y * block_dim_y) - (src_bitmap->height + PAD_TOP);
-    padding_amounts.left = PAD_LEFT;
-    padding_amounts.right = (grid_dim_x * block_dim_x) - (src_bitmap->width + PAD_LEFT);
-    pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding_amounts);
-    pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding_amounts);
+    // ATTENTION : it is important to use cast to (int) since we want to test
+    // for a maximum value and the subtraction can yield a negative number.
+    Padding padding;
+    padding.top = PAD_TOP;
+    padding.bottom = max((int) ((grid_dim_y * block_dim_y) - (src_bitmap->height + PAD_BOTTOM)), PAD_BOTTOM);
+    padding.left = PAD_LEFT;
+    padding.right = max((int) ((grid_dim_x * block_dim_x) - (src_bitmap->width + PAD_RIGHT)), PAD_RIGHT);
+    pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding);
+    pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding);
 
     // allocate memory on device
     // TODO
@@ -87,7 +89,7 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     // iterative thinning algorithm
     unsigned int iterations = 0;
     // do {
-    //     skeletonize_pass<<<grid_dim, block_dim>>>(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding_amounts);
+    //     skeletonize_pass<<<grid_dim, block_dim>>>(src_bitmap->data, dst_bitmap->data, src_bitmap->width, src_bitmap->height, padding);
     //     swap_bitmaps(&src_bitmap, &dst_bitmap);
 
     //     iterations++;
@@ -97,7 +99,7 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
 
     // Remove extra padding that was added to the images (don't care about
     // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_binary_bitmap(&dst_bitmap, padding_amounts);
+    unpad_binary_bitmap(&dst_bitmap, padding);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(dst_bitmap);
@@ -113,29 +115,25 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned int height, Padding padding) {
-    assert(src && "src bitmap must be non-NULL");
-    assert(dst && "dst bitmap must be non-NULL");
+    unsigned int row = blockIdx.y * blockDim.y + threadIdx.y + padding.top;
+    unsigned int col = blockIdx.x * blockDim.x + threadIdx.x + padding.left;
 
-    for (unsigned int row = padding.top; row < height - padding.bottom; row++) {
-        for (unsigned int col = padding.left; col < width - padding.right; col++) {
-            uint8_t NZ = black_neighbors_around(src, row, col, width);
-            uint8_t TR_P1 = wb_transitions_around(src, row, col, width);
-            uint8_t TR_P2 = wb_transitions_around(src, row-1, col, width);
-            uint8_t TR_P4 = wb_transitions_around(src, row, col-1, width);
-            uint8_t P2 = P2(src, row, col, width);
-            uint8_t P4 = P4(src, row, col, width);
-            uint8_t P6 = P6(src, row, col, width);
-            uint8_t P8 = P8(src, row, col, width);
+    uint8_t NZ = black_neighbors_around(src, row, col, width);
+    uint8_t TR_P1 = wb_transitions_around(src, row, col, width);
+    uint8_t TR_P2 = wb_transitions_around(src, row-1, col, width);
+    uint8_t TR_P4 = wb_transitions_around(src, row, col-1, width);
+    uint8_t P2 = P2(src, row, col, width);
+    uint8_t P4 = P4(src, row, col, width);
+    uint8_t P6 = P6(src, row, col, width);
+    uint8_t P8 = P8(src, row, col, width);
 
-            uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
-            uint8_t thinning_cond_2 = (TR_P1 == 1);
-            uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
-            uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
-            uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+    uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
+    uint8_t thinning_cond_2 = (TR_P1 == 1);
+    uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
+    uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
+    uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-            dst[row * width + col] = BINARY_WHITE + (1 - thinning_cond_ok) * src[row * width + col];
-        }
-    }
+    dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * src[row * width + col]);
 }
 
 // Computes the number of white to black transitions around a pixel.
