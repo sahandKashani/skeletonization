@@ -1,12 +1,9 @@
 #include <assert.h>
-#include <libgen.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "gpu1.cuh"
-#include "../common/files.hpp"
 #include "../common/utils.hpp"
 
 #define THREADS_PER_BLOCK_X 32
