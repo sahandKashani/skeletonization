@@ -124,6 +124,8 @@ unsigned int skeletonize(const char* src_fname, const char* dst_fname) {
     assert(save_successful && "Could not save dst_bitmap");
 
     // deallocate memory used for bitmaps
+    cudaFree(d_src_data);
+    cudaFree(d_dst_data);
     free(src_bitmap);
     free(dst_bitmap);
 
