@@ -6,9 +6,6 @@
 #include "gpu1.cuh"
 #include "../common/utils.hpp"
 
-#define THREADS_PER_BLOCK_X 32
-#define THREADS_PER_BLOCK_Y 32
-
 #define PAD_TOP 2
 #define PAD_LEFT 2
 #define PAD_BOTTOM 1
@@ -70,9 +67,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         fflush(stdout);
     } while (!are_identical_bitmaps(*src_bitmap, *dst_bitmap));
 
-    // TODO : may not be needed
-    cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
-
     // free memory on device
     cudaFree(d_src_data);
     cudaFree(d_dst_data);
@@ -120,13 +114,17 @@ __device__ uint8_t wb_transitions_around(uint8_t* d_data, unsigned int row, unsi
 }
 
 int main(int argc, char** argv) {
-    assert(argc == 3 && "Usage: gpu1 <input_file_name.bmp> <output_file_name.bmp>");
+    assert(argc == 5 && "Usage: gpu1 <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
 
     char* src_fname = argv[1];
     char* dst_fname = argv[2];
+    char* block_dim_x_string = argv[3];
+    char* block_dim_y_string = argv[4];
 
-    printf("src_fname = %s\n", src_fname);
-    printf("dst_fname = %s\n", dst_fname);
+    printf("src_fname   = %s\n", src_fname);
+    printf("dst_fname   = %s\n", dst_fname);
+    printf("block dim X = %s\n", block_dim_x_string);
+    printf("block dim Y = %s\n", block_dim_y_string);
 
     // load src image
     Bitmap* src_bitmap = loadBitmap(src_fname);
@@ -144,8 +142,8 @@ int main(int argc, char** argv) {
 
     // Dimensions of computing elements on the CUDA device.
     // Computing the grid dimensions depends on PAD_TOP and PAD_LEFT.
-    unsigned int block_dim_x = THREADS_PER_BLOCK_X;
-    unsigned int block_dim_y = THREADS_PER_BLOCK_Y;
+    unsigned int block_dim_x = strtol(block_dim_x_string, NULL, 10);
+    unsigned int block_dim_y = strtol(block_dim_y_string, NULL, 10);
     unsigned int grid_dim_x = (unsigned int) ceil((src_bitmap->width) / ((double) block_dim_x));
     unsigned int grid_dim_y = (unsigned int) ceil((src_bitmap->height)/ ((double) block_dim_y));
     dim3 block_dim(block_dim_x, block_dim_y);
