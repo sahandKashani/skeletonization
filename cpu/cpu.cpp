@@ -56,22 +56,28 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned int height, Padding padding) {
     for (unsigned int row = padding.top; row < height - padding.bottom; row++) {
         for (unsigned int col = padding.left; col < width - padding.right; col++) {
-            uint8_t NZ = black_neighbors_around(src, row, col, width);
-            uint8_t TR_P1 = wb_transitions_around(src, row, col, width);
-            uint8_t TR_P2 = wb_transitions_around(src, row-1, col, width);
-            uint8_t TR_P4 = wb_transitions_around(src, row, col-1, width);
-            uint8_t P2 = P2(src, row, col, width);
-            uint8_t P4 = P4(src, row, col, width);
-            uint8_t P6 = P6(src, row, col, width);
-            uint8_t P8 = P8(src, row, col, width);
+            // Optimization for CPU algorithm: You don't need to do any of these
+            // computations if the pixel is already BINARY_WHITE
+            if (src[row * width + col] == BINARY_BLACK) {
+                uint8_t NZ = black_neighbors_around(src, row, col, width);
+                uint8_t TR_P1 = wb_transitions_around(src, row, col, width);
+                uint8_t TR_P2 = wb_transitions_around(src, row-1, col, width);
+                uint8_t TR_P4 = wb_transitions_around(src, row, col-1, width);
+                uint8_t P2 = P2(src, row, col, width);
+                uint8_t P4 = P4(src, row, col, width);
+                uint8_t P6 = P6(src, row, col, width);
+                uint8_t P8 = P8(src, row, col, width);
 
-            uint8_t thinning_cond_1 = ((2 <= NZ) && (NZ <= 6));
-            uint8_t thinning_cond_2 = (TR_P1 == 1);
-            uint8_t thinning_cond_3 = (((P2 && P4 && P8) == 0) || (TR_P2 != 1));
-            uint8_t thinning_cond_4 = (((P2 && P4 && P6) == 0) || (TR_P4 != 1));
+                uint8_t thinning_cond_1 = ((2 <= NZ) && (NZ <= 6));
+                uint8_t thinning_cond_2 = (TR_P1 == 1);
+                uint8_t thinning_cond_3 = (((P2 && P4 && P8) == 0) || (TR_P2 != 1));
+                uint8_t thinning_cond_4 = (((P2 && P4 && P6) == 0) || (TR_P4 != 1));
 
-            if (thinning_cond_1 && thinning_cond_2 && thinning_cond_3 && thinning_cond_4) {
-                dst[row * width + col] = BINARY_WHITE;
+                if (thinning_cond_1 && thinning_cond_2 && thinning_cond_3 && thinning_cond_4) {
+                    dst[row * width + col] = BINARY_WHITE;
+                } else {
+                    dst[row * width + col] = src[row * width + col];
+                }
             } else {
                 dst[row * width + col] = src[row * width + col];
             }
