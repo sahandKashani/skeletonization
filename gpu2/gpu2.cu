@@ -11,14 +11,14 @@
 #define PAD_BOTTOM 1
 #define PAD_RIGHT 1
 
-#define P2(d_data, row, col, width) ((d_data)[((row)-1) * width +  (col)   ])
-#define P3(d_data, row, col, width) ((d_data)[((row)-1) * width + ((col)-1)])
-#define P4(d_data, row, col, width) ((d_data)[ (row)    * width + ((col)-1)])
-#define P5(d_data, row, col, width) ((d_data)[((row)+1) * width + ((col)-1)])
-#define P6(d_data, row, col, width) ((d_data)[((row)+1) * width +  (col)   ])
-#define P7(d_data, row, col, width) ((d_data)[((row)+1) * width + ((col)+1)])
-#define P8(d_data, row, col, width) ((d_data)[ (row)    * width + ((col)+1)])
-#define P9(d_data, row, col, width) ((d_data)[((row)-1) * width + ((col)+1)])
+#define P2(d_data, row, col, width) ((d_data)[((row)-1) * (width) +  (col)   ])
+#define P3(d_data, row, col, width) ((d_data)[((row)-1) * (width) + ((col)-1)])
+#define P4(d_data, row, col, width) ((d_data)[ (row)    * (width) + ((col)-1)])
+#define P5(d_data, row, col, width) ((d_data)[((row)+1) * (width) + ((col)-1)])
+#define P6(d_data, row, col, width) ((d_data)[((row)+1) * (width) +  (col)   ])
+#define P7(d_data, row, col, width) ((d_data)[((row)+1) * (width) + ((col)+1)])
+#define P8(d_data, row, col, width) ((d_data)[ (row)    * (width) + ((col)+1)])
+#define P9(d_data, row, col, width) ((d_data)[((row)-1) * (width) + ((col)+1)])
 
 // Computes the number of black neighbors around a pixel.
 __device__ uint8_t black_neighbors_around(uint8_t* d_data, unsigned int row, unsigned int col, unsigned int width) {
@@ -54,7 +54,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
     unsigned int iterations = 0;
     do {
-        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height, padding);
+        skeletonize_pass<<<grid_dim, block_dim, (block_dim.x + padding.left + padding.right) * (block_dim.y + padding.top + padding.bottom) * sizeof(uint8_t)>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
 
         // bring data back from device
         cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
@@ -75,9 +75,40 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int width, unsigned int height, Padding padding) {
-    unsigned int row = blockIdx.y * blockDim.y + threadIdx.y + padding.top;
-    unsigned int col = blockIdx.x * blockDim.x + threadIdx.x + padding.left;
+__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int width, Padding padding) {
+    // shared memory for d_src tile
+    extern __shared__ uint8_t s_src[];
+
+    unsigned int tx = threadIdx.x;
+    unsigned int ty = threadIdx.y;
+    unsigned int bx = blockIdx.x;
+    unsigned int by = blockIdx.y;
+    unsigned int bdx = blockDim.x;
+    unsigned int bdy = blockDim.y;
+
+    unsigned int row = by * bdy + ty + padding.top;
+    unsigned int col = bx * bdx + tx + padding.left;
+
+    // load a tile of d_src into s_src
+
+    if (((tx % bdx) == 0) & ((ty % bdy) == 0)) {
+        // top-left
+    } else if (((tx % bdx) == (bdx - 1)) & ((ty % bdy) == 0)) {
+        // top-right
+    } else if (((tx % bdx) == 0) & ((ty % bdy) == (bdy - 1))) {
+        // bottom-left
+    } else if (((tx % bdx) == (bdx - 1)) & ((ty % bdy) == (bdy - 1))) {
+        // bottom-right
+    } else if ((ty % bdy) == 0) {
+        // top-center
+    } else if ((ty % bdy) == (bdy - 1)) {
+        // bottom-center
+    } else {
+        // center-center
+    }
+
+    // make sure all threads have finished loading their data into shared memory
+    __syncthreads();
 
     uint8_t NZ = black_neighbors_around(d_src, row, col, width);
     uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width);
