@@ -10,14 +10,14 @@
 #define PAD_BOTTOM 1
 #define PAD_RIGHT 1
 
-#define P2(data, row, col, width) ((data)[((row)-1) * (width) +  (col)   ])
-#define P3(data, row, col, width) ((data)[((row)-1) * (width) + ((col)-1)])
-#define P4(data, row, col, width) ((data)[ (row)    * (width) + ((col)-1)])
-#define P5(data, row, col, width) ((data)[((row)+1) * (width) + ((col)-1)])
-#define P6(data, row, col, width) ((data)[((row)+1) * (width) +  (col)   ])
-#define P7(data, row, col, width) ((data)[((row)+1) * (width) + ((col)+1)])
-#define P8(data, row, col, width) ((data)[ (row)    * (width) + ((col)+1)])
-#define P9(data, row, col, width) ((data)[((row)-1) * (width) + ((col)+1)])
+#define P2(data, row, col, width) ((data)[((row) - 1) * (width) +  (col)     ])
+#define P3(data, row, col, width) ((data)[((row) - 1) * (width) + ((col) - 1)])
+#define P4(data, row, col, width) ((data)[ (row)      * (width) + ((col) - 1)])
+#define P5(data, row, col, width) ((data)[((row) + 1) * (width) + ((col) - 1)])
+#define P6(data, row, col, width) ((data)[((row) + 1) * (width) +  (col)     ])
+#define P7(data, row, col, width) ((data)[((row) + 1) * (width) + ((col) + 1)])
+#define P8(data, row, col, width) ((data)[ (row)      * (width) + ((col) + 1)])
+#define P9(data, row, col, width) ((data)[((row) - 1) * (width) + ((col) + 1)])
 
 // Computes the number of black neighbors around a pixel.
 uint8_t black_neighbors_around(uint8_t* data, unsigned int row, unsigned int col, unsigned int width) {
@@ -61,8 +61,8 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned i
             if (src[row * width + col] == BINARY_BLACK) {
                 uint8_t NZ = black_neighbors_around(src, row, col, width);
                 uint8_t TR_P1 = wb_transitions_around(src, row, col, width);
-                uint8_t TR_P2 = wb_transitions_around(src, row-1, col, width);
-                uint8_t TR_P4 = wb_transitions_around(src, row, col-1, width);
+                uint8_t TR_P2 = wb_transitions_around(src, row - 1, col, width);
+                uint8_t TR_P4 = wb_transitions_around(src, row, col - 1, width);
                 uint8_t P2 = P2(src, row, col, width);
                 uint8_t P4 = P4(src, row, col, width);
                 uint8_t P6 = P6(src, row, col, width);
