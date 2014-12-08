@@ -10,14 +10,14 @@
 #define PAD_BOTTOM 1
 #define PAD_RIGHT 1
 
-#define P2(data, row, col, width) ((data)[((row)-1) * width +  (col)   ])
-#define P3(data, row, col, width) ((data)[((row)-1) * width + ((col)-1)])
-#define P4(data, row, col, width) ((data)[ (row)    * width + ((col)-1)])
-#define P5(data, row, col, width) ((data)[((row)+1) * width + ((col)-1)])
-#define P6(data, row, col, width) ((data)[((row)+1) * width +  (col)   ])
-#define P7(data, row, col, width) ((data)[((row)+1) * width + ((col)+1)])
-#define P8(data, row, col, width) ((data)[ (row)    * width + ((col)+1)])
-#define P9(data, row, col, width) ((data)[((row)-1) * width + ((col)+1)])
+#define P2(data, row, col, width) ((data)[((row)-1) * (width) +  (col)   ])
+#define P3(data, row, col, width) ((data)[((row)-1) * (width) + ((col)-1)])
+#define P4(data, row, col, width) ((data)[ (row)    * (width) + ((col)-1)])
+#define P5(data, row, col, width) ((data)[((row)+1) * (width) + ((col)-1)])
+#define P6(data, row, col, width) ((data)[((row)+1) * (width) +  (col)   ])
+#define P7(data, row, col, width) ((data)[((row)+1) * (width) + ((col)+1)])
+#define P8(data, row, col, width) ((data)[ (row)    * (width) + ((col)+1)])
+#define P9(data, row, col, width) ((data)[((row)-1) * (width) + ((col)+1)])
 
 // Computes the number of black neighbors around a pixel.
 uint8_t black_neighbors_around(uint8_t* data, unsigned int row, unsigned int col, unsigned int width) {
