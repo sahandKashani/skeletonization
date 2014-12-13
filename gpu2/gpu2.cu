@@ -22,6 +22,27 @@
 #define P8(d_data, row, col, width) ((d_data)[ (row)      * (width) + ((col) + 1)])
 #define P9(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) + 1)])
 
+void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t* d_block_equ, uint8_t* d_grid_equ, unsigned int pixel_equ_size, unsigned int block_equ_size) {
+    // used for reduction operation, since we have to modify the grid sizes
+    dim3 reduction_grid_dim(grid_dim.x, grid_dim.y);
+
+    // First reduction from d_pixel_equ to d_block_equ
+    and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
+
+    // iterative reductions of block_equ: if the number of blocks in the
+    // grid exceeds the number of threads in a block, then we cannot go to
+    // the "leaf" reduction where 1 block is only running in the grid, and
+    // must perform another multi-block reduction.
+    while ((reduction_grid_dim.x * reduction_grid_dim.y) > (block_dim.x * block_dim.y)) {
+        reduction_grid_dim.x = (unsigned int) ceil(reduction_grid_dim.x / ((double) block_dim.x));
+        reduction_grid_dim.y = (unsigned int) ceil(reduction_grid_dim.y / ((double) block_dim.y));
+
+        and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_block_equ, block_equ_size);
+    }
+
+    and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
+}
+
 // Adapted from Nvidia cuda SDK samples
 __global__ void and_reduction(uint8_t* d_in, uint8_t* d_out, unsigned int size) {
     // shared memory for tile (without padding, unlike in skeletonize_pass)
@@ -116,25 +137,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
         // 1D grid & 1D block reduction
-
-        // used for reduction operation, since we have to modify the grid sizes
-        dim3 reduction_grid_dim(grid_dim.x, grid_dim.y);
-
-        // First reduction from d_pixel_equ to d_block_equ
-        and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
-
-        // iterative reductions of block_equ: if the number of blocks in the
-        // grid exceeds the number of threads in a block, then we cannot go to
-        // the "leaf" reduction where 1 block is only running in the grid, and
-        // must perform another multi-block reduction.
-        while ((reduction_grid_dim.x * reduction_grid_dim.y) > (block_dim.x * block_dim.y)) {
-            reduction_grid_dim.x = (unsigned int) ceil(reduction_grid_dim.x / ((double) block_dim.x));
-            reduction_grid_dim.y = (unsigned int) ceil(reduction_grid_dim.y / ((double) block_dim.y));
-
-            and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_block_equ, block_equ_size);
-        }
-
-        and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
+        and_reduction(grid_dim, block_dim, d_pixel_equ, d_block_equ, d_grid_equ, pixel_equ_size, block_equ_size);
 
         // bring d_grid_equ back from device
         cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
