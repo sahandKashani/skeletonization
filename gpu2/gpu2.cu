@@ -20,6 +20,10 @@
 #define P8(d_data, row, col, width) ((d_data)[ (row)      * (width) + ((col) + 1)])
 #define P9(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) + 1)])
 
+__global__ void are_identical_bitmaps(uint8_t* d_src, uint8_t* d_dst, uint8_t* d_res, unsigned int width, Padding padding) {
+
+}
+
 // Computes the number of black neighbors around a pixel.
 __device__ uint8_t black_neighbors_around(uint8_t* d_data, unsigned int row, unsigned int col, unsigned int width) {
     uint8_t count = 0;
@@ -39,37 +43,49 @@ __device__ uint8_t black_neighbors_around(uint8_t* d_data, unsigned int row, uns
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
 // the result in the output Bitmap.
 unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding, dim3 grid_dim, dim3 block_dim) {
+    uint8_t are_identical = 0;
+
     // allocate memory on device
     uint8_t* d_src_data = NULL;
     uint8_t* d_dst_data = NULL;
+    uint8_t* d_are_identical = NULL;
     unsigned int data_size = (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t);
+    unsigned int are_identical_size = 1 * sizeof(uint8_t);
     cudaError d_src_malloc_success = cudaMalloc((void**) &d_src_data, data_size);
     cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
+    cudaError d_are_identical_malloc_success = cudaMalloc((void**) &d_are_identical, are_identical_size);
     assert((d_src_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_src_data");
     assert((d_dst_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_dst_data");
+    assert((d_are_identical_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_are_identical");
 
     // send data to device
     cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
     cudaMemcpy(d_dst_data, (*dst_bitmap)->data, data_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_are_identical, &are_identical, are_identical_size, cudaMemcpyHostToDevice);
 
     unsigned int iterations = 0;
     do {
         skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
+        are_identical_bitmaps<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_are_identical, (*src_bitmap)->width, padding);
 
-        // bring data back from device
-        cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
-        cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
+        // bring image equality flag back from device
+        cudaMemcpy(&are_identical, d_are_identical, are_identical_size, cudaMemcpyDeviceToHost);
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
         iterations++;
         printf(".");
         fflush(stdout);
-    } while (!are_identical_bitmaps(*src_bitmap, *dst_bitmap));
+    } while (!are_identical);
+
+    // bring data back from device
+    cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
 
     // free memory on device
     cudaFree(d_src_data);
     cudaFree(d_dst_data);
+    cudaFree(d_are_identical);
 
     return iterations;
 }
