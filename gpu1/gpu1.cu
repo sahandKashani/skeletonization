@@ -50,7 +50,11 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
     // send data to device
     cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_dst_data, (*dst_bitmap)->data, data_size, cudaMemcpyHostToDevice);
+
+    // for the dst data, we don't need to actually send the real data. All we
+    // need is to send some data that is correctly padded with BINARY_WHITE on
+    // the sides.
+    cudaMemset(d_dst_data, BINARY_WHITE, data_size);
 
     unsigned int iterations = 0;
     do {
