@@ -276,5 +276,7 @@ int main(int argc, char** argv) {
     free(src_bitmap);
     free(dst_bitmap);
 
+    cudaDeviceReset();
+
     return EXIT_SUCCESS;
 }
