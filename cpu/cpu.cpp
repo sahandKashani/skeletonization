@@ -124,6 +124,9 @@ int main(int argc, char** argv) {
     Bitmap* dst_bitmap = createBitmap(src_bitmap->width, src_bitmap->height, src_bitmap->depth);
     assert(dst_bitmap != NULL && "Error: could not allocate memory for dst bitmap");
 
+    printf("orig img width = %u\n", src_bitmap->width);
+    printf("orig img height = %u\n", src_bitmap->height);
+
     // Pad the binary images with pixels on each side. This will be useful when
     // implementing the skeletonization algorithm, because the mask we use
     // depends on P2 and P4, which also have their own window.
@@ -134,6 +137,9 @@ int main(int argc, char** argv) {
     padding.right = PAD_RIGHT;
     pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding);
     pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding);
+
+    printf("padded img width = %u\n", src_bitmap->width);
+    printf("padded img height = %u\n", src_bitmap->height);
 
     unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding);
     printf(" %u iterations\n", iterations);
