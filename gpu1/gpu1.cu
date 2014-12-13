@@ -6,6 +6,8 @@
 #include "gpu1.cuh"
 #include "../common/utils.hpp"
 
+#define MAX_THREADS_PER_BLOCK 1024
+
 #define PAD_TOP 2
 #define PAD_LEFT 2
 #define PAD_BOTTOM 1
@@ -127,8 +129,6 @@ int main(int argc, char** argv) {
 
     printf("src_fname   = %s\n", src_fname);
     printf("dst_fname   = %s\n", dst_fname);
-    printf("block dim X = %s\n", block_dim_x_string);
-    printf("block dim Y = %s\n", block_dim_y_string);
 
     // load src image
     Bitmap* src_bitmap = loadBitmap(src_fname);
@@ -148,10 +148,15 @@ int main(int argc, char** argv) {
     // Computing the grid dimensions depends on PAD_TOP and PAD_LEFT.
     unsigned int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     unsigned int block_dim_y = strtol(block_dim_y_string, NULL, 10);
+    assert((block_dim_x * block_dim_y) <= MAX_THREADS_PER_BLOCK);
+
     unsigned int grid_dim_x = (unsigned int) ceil((src_bitmap->width) / ((double) block_dim_x));
     unsigned int grid_dim_y = (unsigned int) ceil((src_bitmap->height)/ ((double) block_dim_y));
     dim3 block_dim(block_dim_x, block_dim_y);
     dim3 grid_dim(grid_dim_x, grid_dim_y);
+
+    printf("orig img width = %u\n", src_bitmap->width);
+    printf("orig img height = %u\n", src_bitmap->height);
 
     // Pad the binary images with pixels on each side. This will be useful when
     // implementing the skeletonization algorithm, because the mask we use
@@ -165,6 +170,13 @@ int main(int argc, char** argv) {
     padding.right = max((int) ((grid_dim_x * block_dim_x) - (src_bitmap->width + PAD_RIGHT)), PAD_RIGHT);
     pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding);
     pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding);
+
+    printf("padded img width = %u\n", src_bitmap->width);
+    printf("padded img height = %u\n", src_bitmap->height);
+    printf("block dim X = %u\n", block_dim_x);
+    printf("block dim Y = %u\n", block_dim_y);
+    printf("grid dim X = %u\n", grid_dim_x);
+    printf("grid dim Y = %u\n", grid_dim_y);
 
     unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
