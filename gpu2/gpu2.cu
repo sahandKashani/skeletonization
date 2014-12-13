@@ -20,8 +20,30 @@
 #define P8(d_data, row, col, width) ((d_data)[ (row)      * (width) + ((col) + 1)])
 #define P9(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) + 1)])
 
-__global__ void are_identical_bitmaps(uint8_t* d_src, uint8_t* d_dst, uint8_t* d_res, unsigned int width, Padding padding) {
+// Adapted from Nvidia cuda SDK samples
+__global__ void and_reduction(uint8_t* d_in, uint8_t* d_out, unsigned int size) {
+    // shared memory for tile (without padding, unlike in skeletonize_pass)
+    extern __shared__ uint8_t s_data[];
 
+    unsigned int tid = threadIdx.x;
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // load equality values into shared memory tile
+    s_data[tid] = (i < size) ? d_in[i] : 1; // we use 1 since it is a binary AND
+    __syncthreads();
+
+    // do reduction in shared memory
+    for (unsigned int s = (blockDim.x / 2); s > 0; s >>= 1) {
+        if (tid < s) {
+            s_data[tid] &= s_data[tid + s];
+        }
+        __syncthreads();
+    }
+
+    // write result for this block to global memory
+    if (tid == 0) {
+        d_out[blockIdx.x] = s_data[0];
+    }
 }
 
 // Computes the number of black neighbors around a pixel.
@@ -40,52 +62,103 @@ __device__ uint8_t black_neighbors_around(uint8_t* d_data, unsigned int row, uns
     return count;
 }
 
+__global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, unsigned int width, Padding padding) {
+    unsigned int row = blockIdx.y * blockDim.y + threadIdx.y + padding.top;
+    unsigned int col = blockIdx.x * blockDim.x + threadIdx.x + padding.left;
+
+    d_out[(row - padding.top) * (width - padding.left - padding.right) + col] = (d_in_1[row * width + col] == d_in_2[row * width + col]);
+}
+
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
 // the result in the output Bitmap.
 unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding, dim3 grid_dim, dim3 block_dim) {
-    uint8_t are_identical = 0;
+    uint8_t grid_equ = 0;
 
     // allocate memory on device
     uint8_t* d_src_data = NULL;
     uint8_t* d_dst_data = NULL;
-    uint8_t* d_are_identical = NULL;
+    uint8_t* d_pixel_equ = NULL;
+    uint8_t* d_block_equ = NULL;
+    uint8_t* d_grid_equ = NULL;
+
     unsigned int data_size = (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t);
-    unsigned int are_identical_size = 1 * sizeof(uint8_t);
+    unsigned int pixel_equ_size = ((*src_bitmap)->width - padding.left - padding.right) * ((*src_bitmap)->height - padding.top - padding.bottom) * sizeof(uint8_t);
+    unsigned int block_equ_size = grid_dim.x * grid_dim.y * sizeof(uint8_t);
+    unsigned int grid_equ_size = 1 * sizeof(uint8_t);
+
+    // TODO : remove
+    uint8_t* pixel_equ = (uint8_t*) malloc(pixel_equ_size);
+    uint8_t* block_equ = (uint8_t*) malloc(block_equ_size);
+
     cudaError d_src_malloc_success = cudaMalloc((void**) &d_src_data, data_size);
     cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
-    cudaError d_are_identical_malloc_success = cudaMalloc((void**) &d_are_identical, are_identical_size);
+    cudaError d_pixel_equ_malloc_success = cudaMalloc((void**) &d_pixel_equ, pixel_equ_size);
+    cudaError d_block_equ_malloc_success = cudaMalloc((void**) &d_block_equ, block_equ_size);
+    cudaError d_grid_equ_malloc_success = cudaMalloc((void**) &d_grid_equ, grid_equ_size);
+
     assert((d_src_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_src_data");
     assert((d_dst_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_dst_data");
-    assert((d_are_identical_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_are_identical");
+    assert((d_pixel_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_pixel_equ");
+    assert((d_block_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_block_equ");
+    assert((d_grid_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_grid_equ");
 
     // send data to device
-    cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_dst_data, (*dst_bitmap)->data, data_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_are_identical, &are_identical, are_identical_size, cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
+
+    // // for dst_data and pixel_equ, we don't need to actually send the real data.
+    // // All we need is to send some data that is correctly padded with
+    // // BINARY_WHITE on the sides.
+    // cudaMemset(d_dst_data, BINARY_WHITE, data_size);
+
+    // TODO : remove
+    cudaMemset(d_src_data, BINARY_WHITE, data_size);
+    cudaMemset(d_dst_data, BINARY_WHITE, data_size);
 
     unsigned int iterations = 0;
     do {
-        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
-        are_identical_bitmaps<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_are_identical, (*src_bitmap)->width, padding);
+        // 2D grid & 2D block
+        // skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
+        pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
-        // bring image equality flag back from device
-        cudaMemcpy(&are_identical, d_are_identical, are_identical_size, cudaMemcpyDeviceToHost);
+        // TODO : remove
+        cudaMemcpy(pixel_equ, d_pixel_equ, pixel_equ_size, cudaMemcpyDeviceToHost);
+        cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
+        cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
+        // for (unsigned int i = 0; i < pixel_equ_size; i++) {
+        //     printf("pixel_equ[%u] = %u\n", i, pixel_equ[i]);
+        //     fflush(stdout);
+        // }
+
+        cudaMemcpy(block_equ, d_block_equ, block_equ_size, cudaMemcpyDeviceToHost);
+        for (unsigned int i = 0; i < block_equ_size; i++) {
+            printf("block_equ[%u] = %u\n", i, block_equ[i]);
+            fflush(stdout);
+        }
+
+        // 1D grid & 1D block
+        and_reduction<<<grid_dim.x * grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, data_size);
+        and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
+
+        // bring d_grid_equ back from device
+        cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
         iterations++;
         printf(".");
         fflush(stdout);
-    } while (!are_identical);
+    // } while (!grid_equ);
+    } while (0);
 
     // bring data back from device
-    cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
     cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
 
     // free memory on device
     cudaFree(d_src_data);
     cudaFree(d_dst_data);
-    cudaFree(d_are_identical);
+    cudaFree(d_pixel_equ);
+    cudaFree(d_block_equ);
+    cudaFree(d_grid_equ);
 
     return iterations;
 }
@@ -139,8 +212,6 @@ int main(int argc, char** argv) {
 
     printf("src_fname   = %s\n", src_fname);
     printf("dst_fname   = %s\n", dst_fname);
-    printf("block dim X = %s\n", block_dim_x_string);
-    printf("block dim Y = %s\n", block_dim_y_string);
 
     // load src image
     Bitmap* src_bitmap = loadBitmap(src_fname);
@@ -165,6 +236,9 @@ int main(int argc, char** argv) {
     dim3 block_dim(block_dim_x, block_dim_y);
     dim3 grid_dim(grid_dim_x, grid_dim_y);
 
+    printf("orig img width = %u\n", src_bitmap->width);
+    printf("orig img height = %u\n", src_bitmap->height);
+
     // Pad the binary images with pixels on each side. This will be useful when
     // implementing the skeletonization algorithm, because the mask we use
     // depends on P2 and P4, which also have their own window.
@@ -177,6 +251,13 @@ int main(int argc, char** argv) {
     padding.right = max((int) ((grid_dim_x * block_dim_x) - (src_bitmap->width + PAD_RIGHT)), PAD_RIGHT);
     pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding);
     pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding);
+
+    printf("padded img width = %u\n", src_bitmap->width);
+    printf("padded img height = %u\n", src_bitmap->height);
+    printf("block dim X = %u\n", block_dim_x);
+    printf("block dim Y = %u\n", block_dim_y);
+    printf("grid dim X = %u\n", grid_dim_x);
+    printf("grid dim Y = %u\n", grid_dim_y);
 
     unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
