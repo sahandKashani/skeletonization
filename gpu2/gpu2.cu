@@ -6,6 +6,8 @@
 #include "gpu2.cuh"
 #include "../common/utils.hpp"
 
+#define MAX_THREADS_PER_BLOCK 1024
+
 #define PAD_TOP 2
 #define PAD_LEFT 2
 #define PAD_BOTTOM 1
@@ -72,6 +74,7 @@ __global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out,
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
 // the result in the output Bitmap.
 unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding, dim3 grid_dim, dim3 block_dim) {
+    // 1 byte of data indicating if the images are identical
     uint8_t grid_equ = 0;
 
     // allocate memory on device
@@ -86,9 +89,9 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     unsigned int block_equ_size = grid_dim.x * grid_dim.y * sizeof(uint8_t);
     unsigned int grid_equ_size = 1 * sizeof(uint8_t);
 
-    // TODO : remove
-    uint8_t* pixel_equ = (uint8_t*) malloc(pixel_equ_size);
-    uint8_t* block_equ = (uint8_t*) malloc(block_equ_size);
+    // // TODO : remove
+    // uint8_t* pixel_equ = (uint8_t*) malloc(pixel_equ_size);
+    // uint8_t* block_equ = (uint8_t*) malloc(block_equ_size);
 
     cudaError d_src_malloc_success = cudaMalloc((void**) &d_src_data, data_size);
     cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
@@ -116,21 +119,43 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
     unsigned int iterations = 0;
     do {
+        // used for reduction operation, since we have to modify the grid sizes
+        dim3 current_grid_dim(grid_dim.x, grid_dim.y);
+
         // 2D grid & 2D block
         skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
-        // TODO : remove
-        // cudaMemcpy(pixel_equ, d_pixel_equ, pixel_equ_size, cudaMemcpyDeviceToHost);
+        // 1D grid & 1D block reduction
+        // First reduction
+        printf("reducing with grid_dim.x = %u and grid_dim.y = %u\n", grid_dim.x, grid_dim.y); fflush(stdout);
+        and_reduction<<<current_grid_dim.x * current_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
+
+        // iterative reductions if needed: if the number of blocks in the grid
+        // exceeds the number of threads in a block, then we cannot go to the
+        // "leaf" reduction where 1 block is only running, and must perform
+        // another "heavy" reduction.
+        while ((current_grid_dim.x * current_grid_dim.y) > (block_dim.x * block_dim.y)) {
+            current_grid_dim.x = (unsigned int) ceil(current_grid_dim.x / ((double) block_dim.x));
+            current_grid_dim.y = (unsigned int) ceil(current_grid_dim.y / ((double) block_dim.y));
+
+            printf("reducing with current_grid_dim.x = %u and current_grid_dim.y = %u\n", current_grid_dim.x, current_grid_dim.y); fflush(stdout);
+            and_reduction<<<current_grid_dim.x * current_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_block_equ, block_equ_size);
+        }
+
+        and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
+
+
+        // // TODO : remove
         // cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
         // cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
+        // cudaMemcpy(pixel_equ, d_pixel_equ, pixel_equ_size, cudaMemcpyDeviceToHost);
         // for (unsigned int i = 0; i < pixel_equ_size; i++) {
-        //     printf("pixel_equ[%u] = %u\n", i, pixel_equ[i]);
-        //     fflush(stdout);
+        //     if (pixel_equ[i] != 1) {
+        //         printf("pixel_equ[%u] = %u\n", i, pixel_equ[i]);
+        //         fflush(stdout);
+        //     }
         // }
-
-        // 1D grid & 1D block
-        and_reduction<<<grid_dim.x * grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
 
         // cudaMemcpy(block_equ, d_block_equ, block_equ_size, cudaMemcpyDeviceToHost);
         // for (unsigned int i = 0; i < block_equ_size; i++) {
@@ -138,13 +163,11 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         //     fflush(stdout);
         // }
 
-        and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
-
         // bring d_grid_equ back from device
         cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
 
-        printf("grid_equ = %u\n", grid_equ);
-        fflush(stdout);
+        // printf("grid_equ = %u\n", grid_equ);
+        // fflush(stdout);
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
@@ -153,6 +176,14 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         fflush(stdout);
     } while (!grid_equ);
     // } while (0);
+
+    // // TODO : remove
+    // for (unsigned int i = 0; i < pixel_equ_size; i++) {
+    //     if (pixel_equ[i] != 1) {
+    //         printf("pixel_equ[%u] = %u\n", i, pixel_equ[i]);
+    //         fflush(stdout);
+    //     }
+    // }
 
     // bring data back from device
     cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
