@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "gpu2.cuh"
+#include "gpu3.cuh"
 #include "../common/utils.hpp"
 
 #define PAD_TOP 2
@@ -54,7 +54,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
     unsigned int iterations = 0;
     do {
-        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
+        skeletonize_pass<<<grid_dim, block_dim, (block_dim.x + padding.left + padding.right) * (block_dim.y + padding.top + padding.bottom) * sizeof(uint8_t)>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
 
         // bring data back from device
         cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
@@ -76,8 +76,68 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int width, Padding padding) {
-    unsigned int row = blockIdx.y * blockDim.y + threadIdx.y + padding.top;
-    unsigned int col = blockIdx.x * blockDim.x + threadIdx.x + padding.left;
+    // shared memory for d_src tile
+    extern __shared__ uint8_t s_src[];
+
+    unsigned int tx = threadIdx.x;
+    unsigned int ty = threadIdx.y;
+    unsigned int bx = blockIdx.x;
+    unsigned int by = blockIdx.y;
+    unsigned int bdx = blockDim.x;
+    unsigned int bdy = blockDim.y;
+
+    unsigned int row = by * bdy + ty + padding.top;
+    unsigned int col = bx * bdx + tx + padding.left;
+
+    // load a tile of d_src into s_src
+
+    // center-center: Each thread will load 1 value
+    s_src[(ty + padding.top) * bdx + (tx + padding.left)] = d_src[row * width + col];
+
+    // corner cases
+    if (((tx % bdx) == 0) & ((ty % bdy) == 0)) {
+        // top-left: padding.top * padding.left values to load by 1 thread
+        for (unsigned int r = 0; r < padding.top; r++) {
+            for (unsigned int c = 0; c < padding.left; c++) {
+                s_src[r * bdx + c] = d_src[(row - padding.top + r) * width + (col - padding.left + c)];
+            }
+        }
+    } else if (((tx % bdx) == (bdx - 1)) & ((ty % bdy) == 0)) {
+        // top-right: padding.top * padding.right values to load by 1 thread
+        for (unsigned int r = 0; r < padding.top; r++) {
+            for (unsigned int c = 0; c < padding.right; c++) {
+                s_src[r * bdx + bdx + c] = d_src[(row - padding.top + r) * width + (col + c + 1)];
+            }
+        }
+    } else if (((tx % bdx) == 0) & ((ty % bdy) == (bdy - 1))) {
+        // bottom-left: padding.bottom * padding.left values to load by 1 thread
+        for (unsigned int r = 0; r < padding.bottom; r++) {
+            for (unsigned int c = 0; c < padding.left; c++) {
+                s_src[(padding.top + bdy + r) * bdx + c] = d_src[(row + r + 1) * width + (col - padding.left + c)];
+            }
+        }
+    } else if (((tx % bdx) == (bdx - 1)) & ((ty % bdy) == (bdy - 1))) {
+        // bottom-right: padding.bottom * padding.right values to load by 1 thread
+        for (unsigned int r = 0; r < padding.bottom; r++) {
+            for (unsigned int c = 0; c < padding.right; c++) {
+                s_src[(padding.top + bdy + r) * bdx + bdx + c] = d_src[(row + r + 1) * width + (col + c + 1)];
+            }
+        }
+    } else if ((tx % bdx) == 0) {
+        // left-center: padding.left values to load PER thread
+        for (unsigned int c = 0; c < padding.left; c++) {
+            s_src[(ty + padding.top) * bdx + c] = d_src[row * width + c];
+        }
+    } else if ((tx % bdx) == (bdx - 1)) {
+        // right-center: padding.right values to load PER thread
+    } else if ((ty % bdy) == 0) {
+        // top-center: padding.top values to load PER thread
+    } else if ((ty % bdy) == (bdy - 1)) {
+        // bottom-center: padding.bottom values to load PER thread
+    }
+
+    // make sure all threads have finished loading their data into shared memory
+    __syncthreads();
 
     uint8_t NZ = black_neighbors_around(d_src, row, col, width);
     uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width);
@@ -114,7 +174,7 @@ __device__ uint8_t wb_transitions_around(uint8_t* d_data, unsigned int row, unsi
 }
 
 int main(int argc, char** argv) {
-    assert(argc == 5 && "Usage: gpu2 <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
+    assert(argc == 5 && "Usage: gpu3 <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
 
     char* src_fname = argv[1];
     char* dst_fname = argv[2];
