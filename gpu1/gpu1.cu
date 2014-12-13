@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
     int save_successful = saveBitmap(dst_fname, dst_bitmap);
     assert(save_successful == 1 && "Error: could not save dst bitmap");
 
-    // deallocate memory used for bitmaps
+    // free memory used for bitmaps
     free(src_bitmap);
     free(dst_bitmap);
 
