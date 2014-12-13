@@ -103,21 +103,21 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     assert((d_grid_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_grid_equ");
 
     // send data to device
-    // cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
 
-    // // for dst_data and pixel_equ, we don't need to actually send the real data.
-    // // All we need is to send some data that is correctly padded with
-    // // BINARY_WHITE on the sides.
-    // cudaMemset(d_dst_data, BINARY_WHITE, data_size);
-
-    // TODO : remove
-    cudaMemset(d_src_data, BINARY_WHITE, data_size);
+    // for dst_data and pixel_equ, we don't need to actually send the real data.
+    // All we need is to send some data that is correctly padded with
+    // BINARY_WHITE on the sides.
     cudaMemset(d_dst_data, BINARY_WHITE, data_size);
+
+    // // TODO : remove
+    // cudaMemset(d_src_data, BINARY_WHITE, data_size);
+    // cudaMemset(d_dst_data, BINARY_WHITE, data_size);
 
     unsigned int iterations = 0;
     do {
         // 2D grid & 2D block
-        // skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
+        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
         // TODO : remove
@@ -143,13 +143,16 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         // bring d_grid_equ back from device
         cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
 
+        printf("grid_equ = %u\n", grid_equ);
+        fflush(stdout);
+
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
         iterations++;
         printf(".");
         fflush(stdout);
-    // } while (!grid_equ);
-    } while (0);
+    } while (!grid_equ);
+    // } while (0);
 
     // bring data back from device
     cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
