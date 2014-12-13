@@ -29,10 +29,10 @@ void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t*
     // First reduction from d_pixel_equ to d_block_equ
     and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
 
-    // iterative reductions of block_equ: if the number of blocks in the
-    // grid exceeds the number of threads in a block, then we cannot go to
-    // the "leaf" reduction where 1 block is only running in the grid, and
-    // must perform another multi-block reduction.
+    // iterative reductions of block_equ: if the number of blocks in the grid
+    // exceeds the number of threads in a block, then we cannot go to the "leaf"
+    // reduction where 1 block is only running in the grid, and must perform
+    // another multi-block reduction.
     while ((reduction_grid_dim.x * reduction_grid_dim.y) > (block_dim.x * block_dim.y)) {
         reduction_grid_dim.x = (unsigned int) ceil(reduction_grid_dim.x / ((double) block_dim.x));
         reduction_grid_dim.y = (unsigned int) ceil(reduction_grid_dim.y / ((double) block_dim.y));
