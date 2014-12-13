@@ -89,10 +89,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     unsigned int block_equ_size = grid_dim.x * grid_dim.y * sizeof(uint8_t);
     unsigned int grid_equ_size = 1 * sizeof(uint8_t);
 
-    // // TODO : remove
-    // uint8_t* pixel_equ = (uint8_t*) malloc(pixel_equ_size);
-    // uint8_t* block_equ = (uint8_t*) malloc(block_equ_size);
-
     cudaError d_src_malloc_success = cudaMalloc((void**) &d_src_data, data_size);
     cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
     cudaError d_pixel_equ_malloc_success = cudaMalloc((void**) &d_pixel_equ, pixel_equ_size);
@@ -108,66 +104,40 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     // send data to device
     cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
 
-    // for dst_data and pixel_equ, we don't need to actually send the real data.
-    // All we need is to send some data that is correctly padded with
-    // BINARY_WHITE on the sides.
+    // for dst_data, we don't need to actually send the real data. All we need
+    // is to send some data that is correctly padded with BINARY_WHITE on the
+    // sides.
     cudaMemset(d_dst_data, BINARY_WHITE, data_size);
-
-    // // TODO : remove
-    // cudaMemset(d_src_data, BINARY_WHITE, data_size);
-    // cudaMemset(d_dst_data, BINARY_WHITE, data_size);
 
     unsigned int iterations = 0;
     do {
-        // used for reduction operation, since we have to modify the grid sizes
-        dim3 current_grid_dim(grid_dim.x, grid_dim.y);
-
         // 2D grid & 2D block
         skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
         // 1D grid & 1D block reduction
-        // First reduction
-        printf("reducing with grid_dim.x = %u and grid_dim.y = %u\n", grid_dim.x, grid_dim.y); fflush(stdout);
-        and_reduction<<<current_grid_dim.x * current_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
 
-        // iterative reductions if needed: if the number of blocks in the grid
-        // exceeds the number of threads in a block, then we cannot go to the
-        // "leaf" reduction where 1 block is only running, and must perform
-        // another "heavy" reduction.
-        while ((current_grid_dim.x * current_grid_dim.y) > (block_dim.x * block_dim.y)) {
-            current_grid_dim.x = (unsigned int) ceil(current_grid_dim.x / ((double) block_dim.x));
-            current_grid_dim.y = (unsigned int) ceil(current_grid_dim.y / ((double) block_dim.y));
+        // used for reduction operation, since we have to modify the grid sizes
+        dim3 reduction_grid_dim(grid_dim.x, grid_dim.y);
 
-            printf("reducing with current_grid_dim.x = %u and current_grid_dim.y = %u\n", current_grid_dim.x, current_grid_dim.y); fflush(stdout);
-            and_reduction<<<current_grid_dim.x * current_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_block_equ, block_equ_size);
+        // First reduction from d_pixel_equ to d_block_equ
+        and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
+
+        // iterative reductions of block_equ: if the number of blocks in the
+        // grid exceeds the number of threads in a block, then we cannot go to
+        // the "leaf" reduction where 1 block is only running in the grid, and
+        // must perform another multi-block reduction.
+        while ((reduction_grid_dim.x * reduction_grid_dim.y) > (block_dim.x * block_dim.y)) {
+            reduction_grid_dim.x = (unsigned int) ceil(reduction_grid_dim.x / ((double) block_dim.x));
+            reduction_grid_dim.y = (unsigned int) ceil(reduction_grid_dim.y / ((double) block_dim.y));
+
+            and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_block_equ, block_equ_size);
         }
 
         and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
 
-
-        // // TODO : remove
-        // cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
-        // cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
-        // cudaMemcpy(pixel_equ, d_pixel_equ, pixel_equ_size, cudaMemcpyDeviceToHost);
-        // for (unsigned int i = 0; i < pixel_equ_size; i++) {
-        //     if (pixel_equ[i] != 1) {
-        //         printf("pixel_equ[%u] = %u\n", i, pixel_equ[i]);
-        //         fflush(stdout);
-        //     }
-        // }
-
-        // cudaMemcpy(block_equ, d_block_equ, block_equ_size, cudaMemcpyDeviceToHost);
-        // for (unsigned int i = 0; i < block_equ_size; i++) {
-        //     printf("block_equ[%u] = %u\n", i, block_equ[i]);
-        //     fflush(stdout);
-        // }
-
         // bring d_grid_equ back from device
         cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
-
-        // printf("grid_equ = %u\n", grid_equ);
-        // fflush(stdout);
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
@@ -175,15 +145,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         printf(".");
         fflush(stdout);
     } while (!grid_equ);
-    // } while (0);
-
-    // // TODO : remove
-    // for (unsigned int i = 0; i < pixel_equ_size; i++) {
-    //     if (pixel_equ[i] != 1) {
-    //         printf("pixel_equ[%u] = %u\n", i, pixel_equ[i]);
-    //         fflush(stdout);
-    //     }
-    // }
 
     // bring data back from device
     cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
@@ -266,6 +227,8 @@ int main(int argc, char** argv) {
     // Computing the grid dimensions depends on PAD_TOP and PAD_LEFT.
     unsigned int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     unsigned int block_dim_y = strtol(block_dim_y_string, NULL, 10);
+    assert((block_dim_x * block_dim_y) <= MAX_THREADS_PER_BLOCK);
+
     unsigned int grid_dim_x = (unsigned int) ceil((src_bitmap->width) / ((double) block_dim_x));
     unsigned int grid_dim_y = (unsigned int) ceil((src_bitmap->height)/ ((double) block_dim_y));
     dim3 block_dim(block_dim_x, block_dim_y);
