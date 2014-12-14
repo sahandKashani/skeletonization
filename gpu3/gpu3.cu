@@ -109,24 +109,20 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     // allocate memory on device
     uint8_t* d_src_data = NULL;
     uint8_t* d_dst_data = NULL;
-    // uint8_t* d_pixel_equ = NULL;
     uint8_t* d_block_equ = NULL;
     uint8_t* d_grid_equ = NULL;
 
     unsigned int data_size = (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t);
-    // unsigned int pixel_equ_size = ((*src_bitmap)->width - padding.left - padding.right) * ((*src_bitmap)->height - padding.top - padding.bottom) * sizeof(uint8_t);
     unsigned int block_equ_size = grid_dim.x * grid_dim.y * sizeof(uint8_t);
     unsigned int grid_equ_size = 1 * sizeof(uint8_t);
 
     cudaError d_src_malloc_success = cudaMalloc((void**) &d_src_data, data_size);
     cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
-    // cudaError d_pixel_equ_malloc_success = cudaMalloc((void**) &d_pixel_equ, pixel_equ_size);
     cudaError d_block_equ_malloc_success = cudaMalloc((void**) &d_block_equ, block_equ_size);
     cudaError d_grid_equ_malloc_success = cudaMalloc((void**) &d_grid_equ, grid_equ_size);
 
     assert((d_src_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_src_data");
     assert((d_dst_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_dst_data");
-    // assert((d_pixel_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_pixel_equ");
     assert((d_block_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_block_equ");
     assert((d_grid_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_grid_equ");
 
@@ -145,9 +141,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         // pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
         // 1D grid & 1D block reduction
-        // and_reduction(grid_dim, block_dim, d_block_equ, d_grid_equ, block_equ_size);
-
-        // ===================================
 
         // First reduction from d_src_data and d_dst_data to d_block_equ
         and_reduction_2D<<<grid_dim, block_dim, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_src_data, d_dst_data, d_block_equ, (*src_bitmap)->width, data_size, padding);
@@ -169,8 +162,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
         and_reduction_1D<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
 
-        // ================
-
         // bring d_grid_equ back from device
         cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
 
@@ -187,7 +178,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     // free memory on device
     cudaFree(d_src_data);
     cudaFree(d_dst_data);
-    // cudaFree(d_pixel_equ);
     cudaFree(d_block_equ);
     cudaFree(d_grid_equ);
 
