@@ -19,9 +19,10 @@
 void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t* d_block_equ, uint8_t* d_grid_equ, unsigned int pixel_equ_size, unsigned int block_equ_size) {
     // used for reduction operation, since we have to modify the grid sizes
     dim3 reduction_grid_dim(grid_dim.x, grid_dim.y);
+    unsigned int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
 
     // First reduction from d_pixel_equ to d_block_equ
-    and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_pixel_equ, d_block_equ, pixel_equ_size);
+    and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
 
     // iterative reductions of block_equ: if the number of blocks in the grid
     // exceeds the number of threads in a block, then we cannot go to the "leaf"
@@ -31,10 +32,10 @@ void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t*
         reduction_grid_dim.x = (unsigned int) ceil(reduction_grid_dim.x / ((double) block_dim.x));
         reduction_grid_dim.y = (unsigned int) ceil(reduction_grid_dim.y / ((double) block_dim.y));
 
-        and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_block_equ, block_equ_size);
+        and_reduction<<<reduction_grid_dim.x * reduction_grid_dim.y, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, block_equ_size);
     }
 
-    and_reduction<<<1, block_dim.x * block_dim.y, block_dim.x * block_dim.y * sizeof(uint8_t)>>>(d_block_equ, d_grid_equ, block_equ_size);
+    and_reduction<<<1, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_grid_equ, block_equ_size);
 }
 
 // Adapted from Nvidia cuda SDK samples
