@@ -16,24 +16,30 @@
 #define P8(d_data, row, col, width) ((d_data)[ (row)      * (width) + ((col) + 1)])
 #define P9(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) + 1)])
 
+int iteration = 0;
+
 void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t* d_block_equ, uint8_t* d_grid_equ, unsigned int pixel_equ_size, unsigned int block_equ_size) {
     unsigned int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-
-    // First reduction from d_pixel_equ to d_block_equ
-    and_reduction<<<grid_dim.x * grid_dim.y, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
+    unsigned int grid_size = grid_dim.x * grid_dim.y;
+    unsigned int block_size = block_dim.x * block_dim.y;
 
     // iterative reductions of block_equ: if the number of blocks in the grid
     // exceeds the number of threads in a block, then we cannot go to the "leaf"
     // reduction where 1 block is only running in the grid, and must perform
     // another multi-block reduction.
-    while ((grid_dim.x * grid_dim.y) > (block_dim.x * block_dim.y)) {
-        grid_dim.x = (unsigned int) ceil(grid_dim.x / ((double) block_dim.x));
-        grid_dim.y = (unsigned int) ceil(grid_dim.y / ((double) block_dim.y));
+    do {
+        and_reduction<<<grid_size, block_size, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
+        pixel_equ_size = grid_size;
+        grid_size = ceil(grid_size / ((double) block_size));
 
-        and_reduction<<<grid_dim.x * grid_dim.y, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, block_equ_size);
-    }
+        if (iteration == 0) {
+            printf("grid_size = %u\n", grid_size);
+            printf("pixel_equ_size = %u\n", pixel_equ_size);
+       }
+    } while (grid_size != 1);
 
-    and_reduction<<<1, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, block_equ_size);
+    and_reduction<<<1, block_size, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
+    iteration++;
 }
 
 // Adapted from Nvidia cuda SDK samples
