@@ -33,7 +33,7 @@ void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t*
         and_reduction<<<grid_dim.x * grid_dim.y, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, block_equ_size);
     }
 
-    and_reduction<<<1, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_grid_equ, block_equ_size);
+    and_reduction<<<1, block_dim.x * block_dim.y, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, block_equ_size);
 }
 
 // Adapted from Nvidia cuda SDK samples
@@ -133,7 +133,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         and_reduction(grid_dim, block_dim, d_pixel_equ, d_block_equ, d_grid_equ, pixel_equ_size, block_equ_size);
 
         // bring d_grid_equ back from device
-        cudaMemcpy(&grid_equ, d_grid_equ, grid_equ_size, cudaMemcpyDeviceToHost);
+        cudaMemcpy(&grid_equ, d_pixel_equ, grid_equ_size, cudaMemcpyDeviceToHost);
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
