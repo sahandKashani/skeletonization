@@ -89,7 +89,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     uint8_t* d_dst_data = NULL;
     uint8_t* d_pixel_equ = NULL;
     uint8_t* d_block_equ = NULL;
-    uint8_t* d_grid_equ = NULL;
 
     unsigned int data_size = (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t);
     unsigned int pixel_equ_size = ((*src_bitmap)->width - padding.left - padding.right) * ((*src_bitmap)->height - padding.top - padding.bottom) * sizeof(uint8_t);
@@ -100,13 +99,11 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
     cudaError d_pixel_equ_malloc_success = cudaMalloc((void**) &d_pixel_equ, pixel_equ_size);
     cudaError d_block_equ_malloc_success = cudaMalloc((void**) &d_block_equ, block_equ_size);
-    cudaError d_grid_equ_malloc_success = cudaMalloc((void**) &d_grid_equ, grid_equ_size);
 
     assert((d_src_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_src_data");
     assert((d_dst_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_dst_data");
     assert((d_pixel_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_pixel_equ");
     assert((d_block_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_block_equ");
-    assert((d_grid_equ_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_grid_equ");
 
     // send data to device
     cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
@@ -143,7 +140,6 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
     cudaFree(d_dst_data);
     cudaFree(d_pixel_equ);
     cudaFree(d_block_equ);
-    cudaFree(d_grid_equ);
 
     return iterations;
 }
