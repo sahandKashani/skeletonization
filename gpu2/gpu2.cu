@@ -16,24 +16,21 @@
 #define P8(d_data, row, col, width) ((d_data)[ (row)      * (width) + ((col) + 1)])
 #define P9(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) + 1)])
 
-void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t* d_block_equ, uint8_t* d_grid_equ, unsigned int pixel_equ_size, unsigned int block_equ_size) {
+void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, unsigned int pixel_equ_size) {
     unsigned int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
     unsigned int grid_size = grid_dim.x * grid_dim.y;
     unsigned int block_size = block_dim.x * block_dim.y;
 
-    // iterative reductions of block_equ: if the number of blocks in the grid
-    // exceeds the number of threads in a block, then we cannot go to the "leaf"
-    // reduction where 1 block is only running in the grid, and must perform
-    // another multi-block reduction.
+    // iterative reductions of d_pixel_equ
     do {
-        and_reduction<<<grid_size, block_size, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
+        and_reduction<<<grid_size, block_size, shared_mem_size>>>(d_pixel_equ, pixel_equ_size);
         pixel_equ_size = grid_size;
         grid_size = ceil(grid_size / ((double) block_size));
     } while (pixel_equ_size != 1);
 }
 
 // Adapted from Nvidia cuda SDK samples
-__global__ void and_reduction(uint8_t* d_in, uint8_t* d_out, unsigned int size) {
+__global__ void and_reduction(uint8_t* d_data, unsigned int size) {
     // shared memory for tile (without padding, unlike in skeletonize_pass)
     extern __shared__ uint8_t s_data[];
 
@@ -41,7 +38,7 @@ __global__ void and_reduction(uint8_t* d_in, uint8_t* d_out, unsigned int size) 
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     // load equality values into shared memory tile
-    s_data[tid] = (i < size) ? d_in[i] : 1; // we use 1 since it is a binary AND
+    s_data[tid] = (i < size) ? d_data[i] : 1; // we use 1 since it is a binary AND
     __syncthreads();
 
     // do reduction in shared memory
@@ -54,7 +51,7 @@ __global__ void and_reduction(uint8_t* d_in, uint8_t* d_out, unsigned int size) 
 
     // write result for this block to global memory
     if (tid == 0) {
-        d_out[blockIdx.x] = s_data[0];
+        d_data[blockIdx.x] = s_data[0];
     }
 }
 
@@ -126,7 +123,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
 
         // 1D grid & 1D block reduction
-        and_reduction(grid_dim, block_dim, d_pixel_equ, d_block_equ, d_grid_equ, pixel_equ_size, block_equ_size);
+        and_reduction(grid_dim, block_dim, d_pixel_equ, pixel_equ_size);
 
         // bring d_grid_equ back from device
         cudaMemcpy(&grid_equ, d_pixel_equ, grid_equ_size, cudaMemcpyDeviceToHost);
