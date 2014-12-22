@@ -9,6 +9,11 @@
 #define GRAYSCALE_BLACK 0
 #define GRAYSCALE_WHITE 255
 
+#define PAD_TOP 2
+#define PAD_LEFT 2
+#define PAD_BOTTOM 1
+#define PAD_RIGHT 1
+
 typedef struct {
     unsigned int top;
     unsigned int bottom;
@@ -19,8 +24,6 @@ typedef struct {
 uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst);
 void binary_to_grayscale(Bitmap* image);
 void copy_bitmap(Bitmap* src, Bitmap* dst);
-void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
-void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
 uint8_t is_binary_image(Bitmap* image);
 uint8_t is_binary_valued_grayscale_image(Bitmap* image);
 void grayscale_to_binary(Bitmap* image);

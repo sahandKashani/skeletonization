@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cpu.hpp"
+#include "../common/cpu_only_utils.hpp"
 #include "../common/utils.hpp"
 
 #define P2(data, row, col, width) ((data)[((row) - 1) * (width) +  (col)     ])
