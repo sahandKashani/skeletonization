@@ -115,14 +115,11 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
     unsigned int iterations = 0;
     do {
-        // 2D grid & 2D block
         skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, padding);
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_pixel_equ, (*src_bitmap)->width, padding);
-
-        // 1D grid & 1D block reduction
         and_reduction(grid_dim, block_dim, d_pixel_equ, pixel_equ_size);
 
-        // bring d_grid_equ back from device
+        // bring d_pixel_equ[0] back from device
         cudaMemcpy(&grid_equ, d_pixel_equ, grid_equ_size, cudaMemcpyDeviceToHost);
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
