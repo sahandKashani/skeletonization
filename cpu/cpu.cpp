@@ -5,11 +5,6 @@
 #include "cpu.hpp"
 #include "../common/utils.hpp"
 
-#define PAD_TOP 2
-#define PAD_LEFT 2
-#define PAD_BOTTOM 1
-#define PAD_RIGHT 1
-
 #define P2(data, row, col, width) ((data)[((row) - 1) * (width) +  (col)     ])
 #define P3(data, row, col, width) ((data)[((row) - 1) * (width) + ((col) - 1)])
 #define P4(data, row, col, width) ((data)[ (row)      * (width) + ((col) - 1)])
@@ -102,60 +97,16 @@ uint8_t wb_transitions_around(uint8_t* data, unsigned int row, unsigned int col,
 }
 
 int main(int argc, char** argv) {
-    assert(argc == 3 && "Usage: cpu <input_file_name.bmp> <output_file_name.bmp>");
-
-    char* src_fname = argv[1];
-    char* dst_fname = argv[2];
-
-    printf("src_fname = %s\n", src_fname);
-    printf("dst_fname = %s\n", dst_fname);
-
-    // load src image
-    Bitmap* src_bitmap = loadBitmap(src_fname);
-    assert(src_bitmap != NULL && "Error: could not load src bitmap");
-
-    // validate src image is 8-bit binary-valued grayscale image
-    assert(is_binary_valued_grayscale_image(src_bitmap) && "Error: Only 8-bit binary-valued grayscale images are supported. Values must be black (0) or white (255) only");
-
-    // we work on true binary images
-    grayscale_to_binary(src_bitmap);
-
-    // Create dst bitmap image (empty for now)
-    Bitmap* dst_bitmap = createBitmap(src_bitmap->width, src_bitmap->height, src_bitmap->depth);
-    assert(dst_bitmap != NULL && "Error: could not allocate memory for dst bitmap");
-
-    printf("orig img width = %u\n", src_bitmap->width);
-    printf("orig img height = %u\n", src_bitmap->height);
-
-    // Pad the binary images with pixels on each side. This will be useful when
-    // implementing the skeletonization algorithm, because the mask we use
-    // depends on P2 and P4, which also have their own window.
+    Bitmap* src_bitmap = NULL;
+    Bitmap* dst_bitmap = NULL;
     Padding padding;
-    padding.top = PAD_TOP;
-    padding.bottom = PAD_BOTTOM;
-    padding.left = PAD_LEFT;
-    padding.right = PAD_RIGHT;
-    pad_binary_bitmap(&src_bitmap, BINARY_WHITE, padding);
-    pad_binary_bitmap(&dst_bitmap, BINARY_WHITE, padding);
 
-    printf("padded img width = %u\n", src_bitmap->width);
-    printf("padded img height = %u\n", src_bitmap->height);
+    cpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding);
 
     unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding);
     printf(" %u iterations\n", iterations);
 
-    // Remove extra padding that was added to the images (don't care about
-    // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_binary_bitmap(&dst_bitmap, padding);
-
-    // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
-    binary_to_grayscale(dst_bitmap);
-    int save_successful = saveBitmap(dst_fname, dst_bitmap);
-    assert(save_successful == 1 && "Error: could not save dst bitmap");
-
-    // free memory used for bitmaps
-    free(src_bitmap);
-    free(dst_bitmap);
+    cpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
 
     return EXIT_SUCCESS;
 }

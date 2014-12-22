@@ -19,6 +19,8 @@ typedef struct {
 uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst);
 void binary_to_grayscale(Bitmap* image);
 void copy_bitmap(Bitmap* src, Bitmap* dst);
+void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
+void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
 uint8_t is_binary_image(Bitmap* image);
 uint8_t is_binary_valued_grayscale_image(Bitmap* image);
 void grayscale_to_binary(Bitmap* image);
