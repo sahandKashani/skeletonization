@@ -16,8 +16,6 @@
 #define P8(d_data, row, col, width) ((d_data)[ (row)      * (width) + ((col) + 1)])
 #define P9(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) + 1)])
 
-int iteration = 0;
-
 void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t* d_block_equ, uint8_t* d_grid_equ, unsigned int pixel_equ_size, unsigned int block_equ_size) {
     unsigned int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
     unsigned int grid_size = grid_dim.x * grid_dim.y;
@@ -31,15 +29,7 @@ void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, uint8_t*
         and_reduction<<<grid_size, block_size, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
         pixel_equ_size = grid_size;
         grid_size = ceil(grid_size / ((double) block_size));
-
-        if (iteration == 0) {
-            printf("grid_size = %u\n", grid_size);
-            printf("pixel_equ_size = %u\n", pixel_equ_size);
-       }
-    } while (grid_size != 1);
-
-    and_reduction<<<1, block_size, shared_mem_size>>>(d_pixel_equ, d_pixel_equ, pixel_equ_size);
-    iteration++;
+    } while (pixel_equ_size != 1);
 }
 
 // Adapted from Nvidia cuda SDK samples
