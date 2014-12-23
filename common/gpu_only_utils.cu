@@ -72,10 +72,6 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // for a maximum value and the subtraction can yield a negative number.
     (*padding).bottom = (grid_dim_y * block_dim_y) - ((*src_bitmap)->height);
     (*padding).right = (grid_dim_x * block_dim_x) - ((*src_bitmap)->width);
-
-    printf("padding.bottom = %u\n", (*padding).bottom);
-    printf("padding.right = %u\n", (*padding).right);
-
     pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
     pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
 
@@ -85,13 +81,6 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("block dim Y = %u\n", block_dim_y);
     printf("grid dim X = %u\n", grid_dim_x);
     printf("grid dim Y = %u\n", grid_dim_y);
-
-    for (int row = 0; row < (*src_bitmap)->height; row++) {
-        for (int col = 0; col < (*src_bitmap)->width; col++) {
-            printf("%u", (*src_bitmap)->data[row * ((*src_bitmap)->width) + col]);
-        }
-        printf("\n");
-    }
 }
 
 // Pads the binary image given as input with the padding values provided as

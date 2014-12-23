@@ -121,8 +121,8 @@ int main(int argc, char** argv) {
 
     gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding, &grid_dim, &block_dim);
 
-    // unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding, grid_dim, block_dim);
-    // printf(" %u iterations\n", iterations);
+    unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding, grid_dim, block_dim);
+    printf(" %u iterations\n", iterations);
 
     gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
 
