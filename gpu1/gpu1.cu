@@ -75,8 +75,8 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding paddi
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int width, Padding padding) {
-    unsigned int row = blockIdx.y * blockDim.y + threadIdx.y + padding.top;
-    unsigned int col = blockIdx.x * blockDim.x + threadIdx.x + padding.left;
+    unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int col = blockIdx.x * blockDim.x + threadIdx.x;
 
     uint8_t NZ = black_neighbors_around(d_src, row, col, width);
     uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width);
@@ -121,8 +121,8 @@ int main(int argc, char** argv) {
 
     gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding, &grid_dim, &block_dim);
 
-    unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding, grid_dim, block_dim);
-    printf(" %u iterations\n", iterations);
+    // unsigned int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding, grid_dim, block_dim);
+    // printf(" %u iterations\n", iterations);
 
     gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
 

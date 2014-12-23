@@ -6,15 +6,8 @@
 
 #define MAX_THREADS_PER_BLOCK 1024
 
-#define PAD_TOP (2)
-#define PAD_LEFT (2)
-#define PAD_BOTTOM (1)
-#define PAD_RIGHT (1)
-
 typedef struct {
-    unsigned int top;
     unsigned int bottom;
-    unsigned int left;
     unsigned int right;
 } Padding;
 

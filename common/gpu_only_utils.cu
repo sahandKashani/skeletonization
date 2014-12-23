@@ -70,10 +70,12 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // sure that all threads have some data to work on (even if it is bogus)
     // ATTENTION : it is important to use cast to (int) since we want to test
     // for a maximum value and the subtraction can yield a negative number.
-    (*padding).top = PAD_TOP;
-    (*padding).bottom = max((int) ((grid_dim_y * block_dim_y) - ((*src_bitmap)->height + PAD_BOTTOM)), PAD_BOTTOM);
-    (*padding).left = PAD_LEFT;
-    (*padding).right = max((int) ((grid_dim_x * block_dim_x) - ((*src_bitmap)->width + PAD_RIGHT)), PAD_RIGHT);
+    (*padding).bottom = (grid_dim_y * block_dim_y) - ((*src_bitmap)->height);
+    (*padding).right = (grid_dim_x * block_dim_x) - ((*src_bitmap)->width);
+
+    printf("padding.bottom = %u\n", (*padding).bottom);
+    printf("padding.right = %u\n", (*padding).right);
+
     pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
     pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
 
@@ -83,6 +85,13 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("block dim Y = %u\n", block_dim_y);
     printf("grid dim X = %u\n", grid_dim_x);
     printf("grid dim Y = %u\n", grid_dim_y);
+
+    for (int row = 0; row < (*src_bitmap)->height; row++) {
+        for (int col = 0; col < (*src_bitmap)->width; col++) {
+            printf("%u", (*src_bitmap)->data[row * ((*src_bitmap)->width) + col]);
+        }
+        printf("\n");
+    }
 }
 
 // Pads the binary image given as input with the padding values provided as
@@ -93,24 +102,21 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
     assert((binary_padding_value == BINARY_BLACK || binary_padding_value == BINARY_WHITE) && "Must provide a binary value for padding");
 
     // allocate buffer for image data with extra rows and extra columns
-    Bitmap *new_image = createBitmap((*image)->width + (padding.left + padding.right), (*image)->height + (padding.top + padding.bottom), (*image)->depth);
+    Bitmap *new_image = createBitmap((*image)->width + padding.right, (*image)->height + padding.bottom, (*image)->depth);
 
     // copy original data into the center of the new buffer
     for (unsigned int row = 0; row < new_image->height; row++) {
         for (unsigned int col = 0; col < new_image->width; col++) {
 
-            uint8_t is_top_row_padding_zone = ( (0 <= row) && (row <= padding.top) );
             uint8_t is_bottom_row_padding_zone = ( ((new_image->height - padding.bottom) <= row) && (row <= (new_image->height-1)) );
-            uint8_t is_left_col_padding_zone = ( (0 <= col) && (col <= padding.left) );
             uint8_t is_right_col_padding_zone = ( ((new_image->width - padding.right) <= col) && (col <= (new_image->width-1)) );
 
-            if (is_top_row_padding_zone || is_bottom_row_padding_zone ||
-                is_left_col_padding_zone || is_right_col_padding_zone) {
+            if (is_bottom_row_padding_zone || is_right_col_padding_zone) {
                 // set the border pixels around the center image to binary_padding_value
                 new_image->data[row * (new_image->width) + col] = binary_padding_value;
             } else {
                 // set the pixels in the center to the original image
-                new_image->data[row * (new_image->width) + col] = (*image)->data[(row-padding.top) * ((*image)->width) + (col-padding.left)];
+                new_image->data[row * (new_image->width) + col] = (*image)->data[row * ((*image)->width) + col];
             }
         }
     }
@@ -126,12 +132,12 @@ void unpad_binary_bitmap(Bitmap** image, Padding padding) {
     assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
 
     // allocate buffer for image data with less rows and less columns
-    Bitmap *new_image = createBitmap((*image)->width - (padding.left + padding.right), (*image)->height - (padding.top + padding.bottom), (*image)->depth);
+    Bitmap *new_image = createBitmap((*image)->width - padding.right, (*image)->height - padding.bottom, (*image)->depth);
 
     // copy data from larger image into the middle of the new buffer
     for (unsigned int row = 0; row < new_image->height; row++) {
         for (unsigned int col = 0; col < new_image->width; col++) {
-            new_image->data[row * new_image->width + col] = (*image)->data[(row+padding.top) * ((*image)->width) + (col+padding.left)];
+            new_image->data[row * new_image->width + col] = (*image)->data[row * ((*image)->width) + col];
         }
     }
 
