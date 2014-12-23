@@ -9,7 +9,7 @@
 #define GRAYSCALE_BLACK (0)
 #define GRAYSCALE_WHITE (255)
 
-#define is_outside_image(row, col, width, height) (((row) <= 0) || ((row) >= ((height) - 1)) || ((col) <= 0) || ((col) >= ((width) - 1)))
+#define is_outside_image(row, col, width, height) ((((int) (row)) < ((int) 0)) || (((int) (row)) > ((int) ((height) - 1))) || (((int) (col)) < ((int) 0)) || (((int) (col)) > ((int) ((width) - 1))))
 
 uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst);
 void binary_to_grayscale(Bitmap* image);

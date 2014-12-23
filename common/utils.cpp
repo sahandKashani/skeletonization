@@ -13,8 +13,8 @@ uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst) {
     assert(src->height == dst->height && "src and dst must have same height");
     assert(src->depth == dst->depth && "src and dst must have same depth");
 
-    for (unsigned int row = 0; row < src->height; row++) {
-        for (unsigned int col = 0; col < src->width; col++) {
+    for (int row = 0; row < src->height; row++) {
+        for (int col = 0; col < src->width; col++) {
             if (dst->data[row * src->width + col] != src->data[row * src->width + col]) {
                 return 0;
             }
@@ -30,8 +30,8 @@ void binary_to_grayscale(Bitmap* image) {
     assert(image && "Bitmap must be non-NULL");
     assert(is_binary_image(image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
 
-    for (unsigned int row = 0; row < image->height; row++) {
-        for (unsigned int col = 0; col < image->width; col++) {
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             image->data[row * image->width + col] = (value == BINARY_BLACK) ? GRAYSCALE_BLACK : GRAYSCALE_WHITE;
         }
@@ -46,8 +46,8 @@ void copy_bitmap(Bitmap* src, Bitmap* dst) {
     assert(src->height == dst->height && "src and dst must have same height");
     assert(src->depth == dst->depth && "src and dst must have same depth");
 
-    for (unsigned int row = 0; row < src->height; row++) {
-        for (unsigned int col = 0; col < src->width; col++) {
+    for (int row = 0; row < src->height; row++) {
+        for (int col = 0; col < src->width; col++) {
             dst->data[row * src->width + col] = src->data[row * src->width + col];
         }
     }
@@ -60,8 +60,8 @@ void grayscale_to_binary(Bitmap* image) {
     assert(image && "Bitmap must be non-NULL");
     assert(is_binary_valued_grayscale_image(image) && "Must supply a binary-valued grayscale image: only black (0) and white (255) are allowed");
 
-    for (unsigned int row = 0; row < image->height; row++) {
-        for (unsigned int col = 0; col < image->width; col++) {
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             image->data[row * image->width + col] = (value == GRAYSCALE_BLACK) ? BINARY_BLACK : BINARY_WHITE;
         }
@@ -78,8 +78,8 @@ uint8_t is_binary_image(Bitmap* image) {
         return 0;
     }
 
-    for (unsigned int row = 0; row < image->height; row++) {
-        for (unsigned int col = 0; col < image->width; col++) {
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             if (!(value == BINARY_BLACK || value == BINARY_WHITE)) {
                 return 0;
@@ -101,8 +101,8 @@ uint8_t is_binary_valued_grayscale_image(Bitmap* image) {
         return 0;
     }
 
-    for (unsigned int row = 0; row < image->height; row++) {
-        for (unsigned int col = 0; col < image->width; col++) {
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
             uint8_t value = image->data[row * image->width + col];
             if (!(value == GRAYSCALE_BLACK || value == GRAYSCALE_WHITE)) {
                 return 0;
