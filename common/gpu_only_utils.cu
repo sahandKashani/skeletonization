@@ -5,6 +5,25 @@
 #include "lspbmp.hpp"
 #include "utils.hpp"
 
+void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding) {
+    char* dst_fname = argv[2];
+
+    // Remove extra padding that was added to the images (don't care about
+    // src_bitmap, so only need to unpad dst_bitmap)
+    unpad_binary_bitmap(dst_bitmap, *padding);
+
+    // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
+    binary_to_grayscale(*dst_bitmap);
+    int save_successful = saveBitmap(dst_fname, *dst_bitmap);
+    assert(save_successful == 1 && "Error: could not save dst_bitmap");
+
+    // free memory used for bitmaps
+    free(*src_bitmap);
+    free(*dst_bitmap);
+
+    cudaDeviceReset();
+}
+
 void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding, dim3* grid_dim, dim3* block_dim) {
     assert(argc == 5 && "Usage: ./<gpu_binary> <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
 
@@ -64,23 +83,4 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("block dim Y = %u\n", block_dim_y);
     printf("grid dim X = %u\n", grid_dim_x);
     printf("grid dim Y = %u\n", grid_dim_y);
-}
-
-void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding) {
-    char* dst_fname = argv[2];
-
-    // Remove extra padding that was added to the images (don't care about
-    // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_binary_bitmap(dst_bitmap, *padding);
-
-    // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
-    binary_to_grayscale(*dst_bitmap);
-    int save_successful = saveBitmap(dst_fname, *dst_bitmap);
-    assert(save_successful == 1 && "Error: could not save dst_bitmap");
-
-    // free memory used for bitmaps
-    free(*src_bitmap);
-    free(*dst_bitmap);
-
-    cudaDeviceReset();
 }
