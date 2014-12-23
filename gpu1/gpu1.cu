@@ -65,21 +65,21 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim
     uint8_t* d_src_data = NULL;
     uint8_t* d_dst_data = NULL;
     unsigned int data_size = (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t);
-    cudaError d_src_malloc_success = cudaMalloc((void**) &d_src_data, data_size);
-    cudaError d_dst_malloc_success = cudaMalloc((void**) &d_dst_data, data_size);
-    assert((d_src_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_src_data");
-    assert((d_dst_malloc_success == cudaSuccess) && "Error: could not allocate memory for d_dst_data");
+    gpuErrchk(cudaMalloc((void**) &d_src_data, data_size));
+    gpuErrchk(cudaMalloc((void**) &d_dst_data, data_size));
 
     // send data to device
-    cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice));
 
     unsigned int iterations = 0;
     do {
         skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 
         // bring data back from device
-        cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost);
-        cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost);
+        gpuErrchk(cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost));
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
@@ -89,8 +89,8 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim
     } while (!are_identical_bitmaps(*src_bitmap, *dst_bitmap));
 
     // free memory on device
-    cudaFree(d_src_data);
-    cudaFree(d_dst_data);
+    gpuErrchk(cudaFree(d_src_data));
+    gpuErrchk(cudaFree(d_dst_data));
 
     return iterations;
 }
