@@ -12,9 +12,10 @@
 uint8_t are_identical_bitmaps(Bitmap* src, Bitmap* dst);
 void binary_to_grayscale(Bitmap* image);
 void copy_bitmap(Bitmap* src, Bitmap* dst);
+void grayscale_to_binary(Bitmap* image);
 uint8_t is_binary_image(Bitmap* image);
 uint8_t is_binary_valued_grayscale_image(Bitmap* image);
-void grayscale_to_binary(Bitmap* image);
+uint8_t is_outside_image(int row, int col, unsigned int width, unsigned int height);
 void print_bitmap_info(const char* fname);
 void swap_bitmaps(void** src, void** dst);
 
