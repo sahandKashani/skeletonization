@@ -19,22 +19,25 @@
 __device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, unsigned int width, unsigned int height, unsigned int iterations) {
     uint8_t count = 0;
 
+    if (row == 1348 && col == 777 && iterations == 0) {
+        printf("P2 = %u\n", P2(d_data, row, col, width, height));
+        printf("P3 = %u\n", P3(d_data, row, col, width, height));
+        printf("P4 = %u\n", P4(d_data, row, col, width, height));
+        printf("P5 = %u\n", P5(d_data, row, col, width, height));
+        printf("P6 = %u\n", P6(d_data, row, col, width, height));
+        printf("P7 = %u\n", P7(d_data, row, col, width, height));
+        printf("P8 = %u\n", P8(d_data, row, col, width, height));
+        printf("P9 = %u\n", P9(d_data, row, col, width, height));
+    }
+
     count += (P2(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P2 = %u\n", count); }
     count += (P3(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P3 = %u\n", count); }
     count += (P4(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P4 = %u\n", count); }
     count += (P5(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P5 = %u\n", count); }
     count += (P6(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P6 = %u\n", count); }
     count += (P7(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P7 = %u\n", count); }
     count += (P8(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P8 = %u\n", count); }
     count += (P9(d_data, row, col, width, height) == BINARY_BLACK);
-    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P9 = %u\n", count); }
 
     return count;
 }
