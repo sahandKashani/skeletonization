@@ -19,16 +19,16 @@
 __device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, unsigned int width, unsigned int height, unsigned int iterations) {
     uint8_t count = 0;
 
-    if (row == 1348 && col == 777 && iterations == 0) {
-        printf("P2 = %u\n", P2(d_data, row, col, width, height));
-        printf("P3 = %u\n", P3(d_data, row, col, width, height));
-        printf("P4 = %u\n", P4(d_data, row, col, width, height));
-        printf("P5 = %u\n", P5(d_data, row, col, width, height));
-        printf("P6 = %u\n", P6(d_data, row, col, width, height));
-        printf("P7 = %u\n", P7(d_data, row, col, width, height));
-        printf("P8 = %u\n", P8(d_data, row, col, width, height));
-        printf("P9 = %u\n", P9(d_data, row, col, width, height));
-    }
+    // if (row == 1348 && col == 777 && iterations == 0) {
+    //     printf("P2 = %u\n", P2(d_data, row, col, width, height));
+    //     printf("P3 = %u\n", P3(d_data, row, col, width, height));
+    //     printf("P4 = %u\n", P4(d_data, row, col, width, height));
+    //     printf("P5 = %u\n", P5(d_data, row, col, width, height));
+    //     printf("P6 = %u\n", P6(d_data, row, col, width, height));
+    //     printf("P7 = %u\n", P7(d_data, row, col, width, height));
+    //     printf("P8 = %u\n", P8(d_data, row, col, width, height));
+    //     printf("P9 = %u\n", P9(d_data, row, col, width, height));
+    // }
 
     count += (P2(d_data, row, col, width, height) == BINARY_BLACK);
     count += (P3(d_data, row, col, width, height) == BINARY_BLACK);
@@ -99,23 +99,23 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int wi
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    if (row == 1348 && col == 777 && iterations == 0) {
-        printf("======================\n");
-        printf("src[%u * %u + %u] = %u\n", row, width, col, d_src[row * width + col]);
-        printf("NZ = %u\n", NZ);
-        printf("TR_P1 = %u\n", TR_P1);
-        printf("TR_P2 = %u\n", TR_P2);
-        printf("TR_P4 = %u\n", TR_P4);
-        printf("P2 = %u\n", P2);
-        printf("P4 = %u\n", P4);
-        printf("P6 = %u\n", P6);
-        printf("P8 = %u\n", P8);
-        printf("thinning_cond_1 = %u\n", thinning_cond_1);
-        printf("thinning_cond_2 = %u\n", thinning_cond_2);
-        printf("thinning_cond_3 = %u\n", thinning_cond_3);
-        printf("thinning_cond_4 = %u\n", thinning_cond_4);
-        printf("======================\n");
-    }
+    // if (row == 1348 && col == 777 && iterations == 0) {
+    //     printf("======================\n");
+    //     printf("src[%u * %u + %u] = %u\n", row, width, col, d_src[row * width + col]);
+    //     printf("NZ = %u\n", NZ);
+    //     printf("TR_P1 = %u\n", TR_P1);
+    //     printf("TR_P2 = %u\n", TR_P2);
+    //     printf("TR_P4 = %u\n", TR_P4);
+    //     printf("P2 = %u\n", P2);
+    //     printf("P4 = %u\n", P4);
+    //     printf("P6 = %u\n", P6);
+    //     printf("P8 = %u\n", P8);
+    //     printf("thinning_cond_1 = %u\n", thinning_cond_1);
+    //     printf("thinning_cond_2 = %u\n", thinning_cond_2);
+    //     printf("thinning_cond_3 = %u\n", thinning_cond_3);
+    //     printf("thinning_cond_4 = %u\n", thinning_cond_4);
+    //     printf("======================\n");
+    // }
 
     d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
 }

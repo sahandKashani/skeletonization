@@ -8,9 +8,9 @@
 void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding) {
     char* dst_fname = argv[2];
 
-    // Remove extra padding that was added to the images (don't care about
-    // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_binary_bitmap(dst_bitmap, *padding);
+    // // Remove extra padding that was added to the images (don't care about
+    // // src_bitmap, so only need to unpad dst_bitmap)
+    // unpad_binary_bitmap(dst_bitmap, *padding);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(*dst_bitmap);
@@ -67,15 +67,15 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("width = %u\n", (*src_bitmap)->width);
     printf("height = %u\n", (*src_bitmap)->height);
 
-    // Pad the binary images with pixels on the right and bottom. This will be
-    // useful when implementing the skeletonization algorithm, as we can make
-    // sure that all threads have some data to work on (even if it is bogus)
-    // ATTENTION : it is important to use cast to (int) since we want to test
-    // for a maximum value and the subtraction can yield a negative number.
-    (*padding).bottom = (grid_dim_y * block_dim_y) - ((*src_bitmap)->height);
-    (*padding).right = (grid_dim_x * block_dim_x) - ((*src_bitmap)->width);
-    pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
-    pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
+    // // Pad the binary images with pixels on the right and bottom. This will be
+    // // useful when implementing the skeletonization algorithm, as we can make
+    // // sure that all threads have some data to work on (even if it is bogus)
+    // // ATTENTION : it is important to use cast to (int) since we want to test
+    // // for a maximum value and the subtraction can yield a negative number.
+    // (*padding).bottom = (grid_dim_y * block_dim_y) - ((*src_bitmap)->height);
+    // (*padding).right = (grid_dim_x * block_dim_x) - ((*src_bitmap)->width);
+    // pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
+    // pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
 
     printf("padded width = %u\n", (*src_bitmap)->width);
     printf("padded height = %u\n", (*src_bitmap)->height);
