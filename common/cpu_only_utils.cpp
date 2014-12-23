@@ -5,7 +5,7 @@
 #include "lspbmp.hpp"
 #include "utils.hpp"
 
-void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding) {
+void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap) {
     assert(argc == 3 && "Usage: ./<cpu_binary> <input_file_name.bmp> <output_file_name.bmp>");
 
     char* src_fname = argv[1];
@@ -30,27 +30,10 @@ void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // Create dst bitmap image (empty for now)
     *dst_bitmap = createBitmap((*src_bitmap)->width, (*src_bitmap)->height, (*src_bitmap)->depth);
     assert(*dst_bitmap != NULL && "Error: could not allocate memory for dst_bitmap");
-
-    // Pad the binary images with pixels on each side. This will be useful when
-    // implementing the skeletonization algorithm, because the mask we use
-    // depends on P2 and P4, which also have their own window.
-    (*padding).top = PAD_TOP;
-    (*padding).bottom = PAD_BOTTOM;
-    (*padding).left = PAD_LEFT;
-    (*padding).right = PAD_RIGHT;
-    pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
-    pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
-
-    printf("padded width = %u\n", (*src_bitmap)->width);
-    printf("padded height = %u\n", (*src_bitmap)->height);
 }
 
-void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding) {
+void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap) {
     char* dst_fname = argv[2];
-
-    // Remove extra padding that was added to the images (don't care about
-    // src_bitmap, so only need to unpad dst_bitmap)
-    unpad_binary_bitmap(dst_bitmap, *padding);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(*dst_bitmap);
