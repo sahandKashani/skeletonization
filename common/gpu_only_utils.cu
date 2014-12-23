@@ -59,8 +59,10 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     unsigned int grid_dim_y = (unsigned int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
     block_dim->x = block_dim_x;
     block_dim->y = block_dim_y;
+    block_dim->z = 1;
     grid_dim->x = grid_dim_x;
     grid_dim->y = grid_dim_y;
+    grid_dim->z = 1;
 
     printf("width = %u\n", (*src_bitmap)->width);
     printf("height = %u\n", (*src_bitmap)->height);
