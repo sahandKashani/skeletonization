@@ -1,10 +1,10 @@
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "gpu1.cuh"
 #include "../common/gpu_only_utils.cuh"
+#include "../common/utils.hpp"
 
 #define P2(d_data, row, col, width) ((d_data)[((row) - 1) * (width) +  (col)     ])
 #define P3(d_data, row, col, width) ((d_data)[((row) - 1) * (width) + ((col) - 1)])
