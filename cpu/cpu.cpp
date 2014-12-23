@@ -6,7 +6,6 @@
 #include "../common/cpu_only_utils.hpp"
 #include "../common/utils.hpp"
 
-#define is_outside_image(row, col, width, height) (((row) <= 0) || ((row) >= ((height) - 1)) || ((col) <= 0) || ((col) >= ((width) - 1)))
 #define P2(data, row, col, width, height) (is_outside_image((row) - 1, (col), (width), (height)) ? BINARY_WHITE : (data)[((row) - 1) * (width) + (col)])
 #define P3(data, row, col, width, height) (is_outside_image((row) - 1, (col) - 1, (width), (height)) ? BINARY_WHITE : (data)[((row) - 1) * (width) + ((col) - 1)])
 #define P4(data, row, col, width, height) (is_outside_image((row), (col) - 1, (width), (height)) ? BINARY_WHITE : (data)[(row) * (width) + ((col) - 1)])
