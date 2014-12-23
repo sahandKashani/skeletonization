@@ -6,56 +6,30 @@
 #include "../common/cpu_only_utils.hpp"
 #include "../common/utils.hpp"
 
+#define is_outside_image(row, col, width, height) (((row) <= 0) || ((row) >= ((height) - 1)) || ((col) <= 0) || ((col) >= ((width) - 1)))
+#define P2(data, row, col, width, height) (is_outside_image((row) - 1, (col), (width), (height)) ? BINARY_WHITE : (data)[((row) - 1) * (width) + (col)])
+#define P3(data, row, col, width, height) (is_outside_image((row) - 1, (col) - 1, (width), (height)) ? BINARY_WHITE : (data)[((row) - 1) * (width) + ((col) - 1)])
+#define P4(data, row, col, width, height) (is_outside_image((row), (col) - 1, (width), (height)) ? BINARY_WHITE : (data)[(row) * (width) + ((col) - 1)])
+#define P5(data, row, col, width, height) (is_outside_image((row) + 1, (col) - 1, (width), (height)) ? BINARY_WHITE : (data)[((row) + 1) * (width) + ((col) - 1)])
+#define P6(data, row, col, width, height) (is_outside_image((row) + 1, (col), (width), (height)) ? BINARY_WHITE : (data)[((row) + 1) * (width) + (col)])
+#define P7(data, row, col, width, height) (is_outside_image((row) + 1, (col) + 1, (width), (height)) ? BINARY_WHITE : (data)[((row) + 1) * (width) + ((col) + 1)])
+#define P8(data, row, col, width, height) (is_outside_image((row), (col) + 1, (width), (height)) ? BINARY_WHITE : (data)[(row) * (width) + ((col) + 1)])
+#define P9(data, row, col, width, height) (is_outside_image((row) - 1, (col) + 1, (width), (height)) ? BINARY_WHITE : (data)[((row) - 1) * (width) + ((col) + 1)])
+
 // Computes the number of black neighbors around a pixel.
 uint8_t black_neighbors_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
     uint8_t count = 0;
 
-    count += (P2_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P3_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P4_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P5_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P6_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P7_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P8_f(data, row, col, width, height) == BINARY_BLACK);
-    count += (P9_f(data, row, col, width, height) == BINARY_BLACK);
+    count += (P2(data, row, col, width, height) == BINARY_BLACK);
+    count += (P3(data, row, col, width, height) == BINARY_BLACK);
+    count += (P4(data, row, col, width, height) == BINARY_BLACK);
+    count += (P5(data, row, col, width, height) == BINARY_BLACK);
+    count += (P6(data, row, col, width, height) == BINARY_BLACK);
+    count += (P7(data, row, col, width, height) == BINARY_BLACK);
+    count += (P8(data, row, col, width, height) == BINARY_BLACK);
+    count += (P9(data, row, col, width, height) == BINARY_BLACK);
 
     return count;
-}
-
-uint8_t is_outside_image(int row, int col, unsigned int width, unsigned int height) {
-    return (row <= 0) || (row >= (height - 1)) || (col <= 0) || (col >= (width - 1));
-}
-
-uint8_t P2_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row - 1, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
-}
-
-uint8_t P3_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row - 1, col - 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col - 1)];
-}
-
-uint8_t P4_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col - 1, width, height) ? BINARY_WHITE : data[row * width + (col - 1)];
-}
-
-uint8_t P5_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row + 1, col - 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col - 1)];
-}
-
-uint8_t P6_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row + 1, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + col];
-}
-
-uint8_t P7_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row + 1, col + 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col + 1)];
-}
-
-uint8_t P8_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col + 1, width, height) ? BINARY_WHITE : data[row * width + (col + 1)];
-}
-
-uint8_t P9_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row - 1, col + 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
 }
 
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
@@ -86,10 +60,10 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned i
                 uint8_t TR_P1 = wb_transitions_around(src, row, col, width, height);
                 uint8_t TR_P2 = wb_transitions_around(src, row - 1, col, width, height);
                 uint8_t TR_P4 = wb_transitions_around(src, row, col - 1, width, height);
-                uint8_t P2 = P2_f(src, row, col, width, height);
-                uint8_t P4 = P4_f(src, row, col, width, height);
-                uint8_t P6 = P6_f(src, row, col, width, height);
-                uint8_t P8 = P8_f(src, row, col, width, height);
+                uint8_t P2 = P2(src, row, col, width, height);
+                uint8_t P4 = P4(src, row, col, width, height);
+                uint8_t P6 = P6(src, row, col, width, height);
+                uint8_t P8 = P8(src, row, col, width, height);
 
                 uint8_t thinning_cond_1 = ((2 <= NZ) && (NZ <= 6));
                 uint8_t thinning_cond_2 = (TR_P1 == 1);
@@ -112,14 +86,14 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned i
 uint8_t wb_transitions_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
     uint8_t count = 0;
 
-    count += ( (P2_f(data, row, col, width, height) == BINARY_WHITE) && (P3_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P3_f(data, row, col, width, height) == BINARY_WHITE) && (P4_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P4_f(data, row, col, width, height) == BINARY_WHITE) && (P5_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P5_f(data, row, col, width, height) == BINARY_WHITE) && (P6_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P6_f(data, row, col, width, height) == BINARY_WHITE) && (P7_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P7_f(data, row, col, width, height) == BINARY_WHITE) && (P8_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P8_f(data, row, col, width, height) == BINARY_WHITE) && (P9_f(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P9_f(data, row, col, width, height) == BINARY_WHITE) && (P2_f(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P2(data, row, col, width, height) == BINARY_WHITE) && (P3(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P3(data, row, col, width, height) == BINARY_WHITE) && (P4(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P4(data, row, col, width, height) == BINARY_WHITE) && (P5(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P5(data, row, col, width, height) == BINARY_WHITE) && (P6(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P6(data, row, col, width, height) == BINARY_WHITE) && (P7(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P7(data, row, col, width, height) == BINARY_WHITE) && (P8(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P8(data, row, col, width, height) == BINARY_WHITE) && (P9(data, row, col, width, height) == BINARY_BLACK) );
+    count += ( (P9(data, row, col, width, height) == BINARY_WHITE) && (P2(data, row, col, width, height) == BINARY_BLACK) );
 
     return count;
 }
