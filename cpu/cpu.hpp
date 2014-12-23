@@ -6,6 +6,7 @@
 #include "../common/utils.hpp"
 
 uint8_t black_neighbors_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height);
+uint8_t is_outside_image(int row, int col, unsigned int width, unsigned int height);
 uint8_t P2_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height);
 uint8_t P3_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height);
 uint8_t P4_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height);

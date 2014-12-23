@@ -113,10 +113,6 @@ uint8_t is_binary_valued_grayscale_image(Bitmap* image) {
     return 1;
 }
 
-uint8_t is_outside_image(int row, int col, unsigned int width, unsigned int height) {
-    return (row <= 0) || (row >= (height - 1)) || (col <= 0) || (col >= (width - 1));
-}
-
 // Prints information about a bitmap image.
 void print_bitmap_info(const char* fname) {
     assert(fname && "Invalid file name");

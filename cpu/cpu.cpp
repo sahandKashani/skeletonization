@@ -22,6 +22,10 @@ uint8_t black_neighbors_around(uint8_t* data, int row, int col, unsigned int wid
     return count;
 }
 
+uint8_t is_outside_image(int row, int col, unsigned int width, unsigned int height) {
+    return (row <= 0) || (row >= (height - 1)) || (col <= 0) || (col >= (width - 1));
+}
+
 uint8_t P2_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
     return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
 }
