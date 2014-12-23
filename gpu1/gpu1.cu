@@ -90,7 +90,7 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int wi
 
     if (row == 1348 && col == 777) {
         printf("======================\n");
-        printf("src[%u * %u + %u] = %u\n", row, width, col, src[row * width + col]);
+        printf("src[%u * %u + %u] = %u\n", row, width, col, d_src[row * width + col]);
         printf("NZ = %u\n", NZ);
         printf("TR_P1 = %u\n", TR_P1);
         printf("TR_P2 = %u\n", TR_P2);
