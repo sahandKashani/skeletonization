@@ -4,15 +4,15 @@
 #include <stdint.h>
 #include "lspbmp.hpp"
 
-#define BINARY_BLACK 1
-#define BINARY_WHITE 0
-#define GRAYSCALE_BLACK 0
-#define GRAYSCALE_WHITE 255
+#define BINARY_BLACK (1)
+#define BINARY_WHITE (0)
+#define GRAYSCALE_BLACK (0)
+#define GRAYSCALE_WHITE (255)
 
-#define PAD_TOP 2
-#define PAD_LEFT 2
-#define PAD_BOTTOM 1
-#define PAD_RIGHT 1
+#define PAD_TOP (2)
+#define PAD_LEFT (2)
+#define PAD_BOTTOM (1)
+#define PAD_RIGHT (1)
 
 typedef struct {
     unsigned int top;
