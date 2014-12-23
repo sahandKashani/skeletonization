@@ -135,6 +135,7 @@ Bitmap *loadBitmap(const char *fname) {
                 fgetc(fptr);
         }
     }
+    fclose(fptr);
     return out;
 }
 
