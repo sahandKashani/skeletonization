@@ -16,17 +16,25 @@
 #define P9(d_data, row, col, width, height) (is_outside_image((row) - 1, (col) + 1, (width), (height)) ? BINARY_WHITE : (d_data)[((row) - 1) * (width) + ((col) + 1)])
 
 // Computes the number of black neighbors around a pixel.
-__device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, unsigned int width, unsigned int height) {
+__device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, unsigned int width, unsigned int height, unsigned int iterations) {
     uint8_t count = 0;
 
     count += (P2(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P2 = %u\n", count); }
     count += (P3(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P3 = %u\n", count); }
     count += (P4(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P4 = %u\n", count); }
     count += (P5(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P5 = %u\n", count); }
     count += (P6(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P6 = %u\n", count); }
     count += (P7(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P7 = %u\n", count); }
     count += (P8(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P8 = %u\n", count); }
     count += (P9(d_data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P9 = %u\n", count); }
 
     return count;
 }
@@ -46,7 +54,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim
 
     unsigned int iterations = 0;
     do {
-        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height, iterations);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -69,14 +77,14 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int width, unsigned int height) {
+__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int width, unsigned int height, unsigned int iterations) {
     unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
-    uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
-    uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
-    uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height);
+    uint8_t NZ = black_neighbors_around(d_src, row, col, width, height, iterations);
+    uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height, iterations);
+    uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height, iterations);
+    uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height, iterations);
     uint8_t P2 = P2(d_src, row, col, width, height);
     uint8_t P4 = P4(d_src, row, col, width, height);
     uint8_t P6 = P6(d_src, row, col, width, height);
@@ -88,7 +96,7 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int wi
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    if (row == 1348 && col == 777) {
+    if (row == 1348 && col == 777 && iterations == 0) {
         printf("======================\n");
         printf("src[%u * %u + %u] = %u\n", row, width, col, d_src[row * width + col]);
         printf("NZ = %u\n", NZ);
@@ -110,7 +118,7 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int wi
 }
 
 // Computes the number of white to black transitions around a pixel.
-__device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, unsigned int width, unsigned int height) {
+__device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, unsigned int width, unsigned int height, unsigned int iterations) {
     uint8_t count = 0;
 
     count += ((P2(d_data, row, col, width, height) == BINARY_WHITE) & (P3(d_data, row, col, width, height) == BINARY_BLACK));

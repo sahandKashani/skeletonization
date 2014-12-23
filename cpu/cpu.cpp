@@ -16,17 +16,25 @@
 #define P9(data, row, col, width, height) (is_outside_image((row) - 1, (col) + 1, (width), (height)) ? BINARY_WHITE : (data)[((row) - 1) * (width) + ((col) + 1)])
 
 // Computes the number of black neighbors around a pixel.
-uint8_t black_neighbors_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
+uint8_t black_neighbors_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height, unsigned int iterations) {
     uint8_t count = 0;
 
     count += (P2(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P2 = %u\n", count); }
     count += (P3(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P3 = %u\n", count); }
     count += (P4(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P4 = %u\n", count); }
     count += (P5(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P5 = %u\n", count); }
     count += (P6(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P6 = %u\n", count); }
     count += (P7(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P7 = %u\n", count); }
     count += (P8(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P8 = %u\n", count); }
     count += (P9(data, row, col, width, height) == BINARY_BLACK);
+    if (row == 1348 && col == 777 && iterations == 0) { printf("count_P9 = %u\n", count); }
 
     return count;
 }
@@ -37,7 +45,7 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap) {
     unsigned int iterations = 0;
 
     do {
-        skeletonize_pass((*src_bitmap)->data, (*dst_bitmap)->data, (*src_bitmap)->width, (*src_bitmap)->height);
+        skeletonize_pass((*src_bitmap)->data, (*dst_bitmap)->data, (*src_bitmap)->width, (*src_bitmap)->height, iterations);
         swap_bitmaps((void**) src_bitmap, (void**) dst_bitmap);
 
         iterations++;
@@ -49,16 +57,16 @@ unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap) {
 }
 
 // Performs 1 iteration of the thinning algorithm.
-void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned int height) {
+void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned int height, unsigned int iterations) {
     for (int row = 0; row < height; row++) {
         for (int col = 0; col < width; col++) {
             // Optimization for CPU algorithm: You don't need to do any of these
             // computations if the pixel is already BINARY_WHITE
             if (src[row * width + col] == BINARY_BLACK) {
-                uint8_t NZ = black_neighbors_around(src, row, col, width, height);
-                uint8_t TR_P1 = wb_transitions_around(src, row, col, width, height);
-                uint8_t TR_P2 = wb_transitions_around(src, row - 1, col, width, height);
-                uint8_t TR_P4 = wb_transitions_around(src, row, col - 1, width, height);
+                uint8_t NZ = black_neighbors_around(src, row, col, width, height, iterations);
+                uint8_t TR_P1 = wb_transitions_around(src, row, col, width, height, iterations);
+                uint8_t TR_P2 = wb_transitions_around(src, row - 1, col, width, height, iterations);
+                uint8_t TR_P4 = wb_transitions_around(src, row, col - 1, width, height, iterations);
                 uint8_t P2 = P2(src, row, col, width, height);
                 uint8_t P4 = P4(src, row, col, width, height);
                 uint8_t P6 = P6(src, row, col, width, height);
@@ -69,7 +77,7 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned i
                 uint8_t thinning_cond_3 = (((P2 && P4 && P8) == 0) || (TR_P2 != 1));
                 uint8_t thinning_cond_4 = (((P2 && P4 && P6) == 0) || (TR_P4 != 1));
 
-                if (row == 1348 && col == 777) {
+                if (row == 1348 && col == 777 && iterations == 0) {
                     printf("======================\n");
                     printf("src[%u * %u + %u] = %u\n", row, width, col, src[row * width + col]);
                     printf("NZ = %u\n", NZ);
@@ -100,7 +108,7 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned i
 }
 
 // Computes the number of white to black transitions around a pixel.
-uint8_t wb_transitions_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
+uint8_t wb_transitions_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height, unsigned int iterations) {
     uint8_t count = 0;
 
     count += ((P2(data, row, col, width, height) == BINARY_WHITE) && (P3(data, row, col, width, height) == BINARY_BLACK));
