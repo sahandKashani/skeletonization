@@ -88,6 +88,24 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, unsigned int wi
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
+    if (row == 1348 && col == 777) {
+        printf("======================\n");
+        printf("src[%u * %u + %u] = %u\n", row, width, col, src[row * width + col]);
+        printf("NZ = %u\n", NZ);
+        printf("TR_P1 = %u\n", TR_P1);
+        printf("TR_P2 = %u\n", TR_P2);
+        printf("TR_P4 = %u\n", TR_P4);
+        printf("P2 = %u\n", P2);
+        printf("P4 = %u\n", P4);
+        printf("P6 = %u\n", P6);
+        printf("P8 = %u\n", P8);
+        printf("thinning_cond_1 = %u\n", thinning_cond_1);
+        printf("thinning_cond_2 = %u\n", thinning_cond_2);
+        printf("thinning_cond_3 = %u\n", thinning_cond_3);
+        printf("thinning_cond_4 = %u\n", thinning_cond_4);
+        printf("======================\n");
+    }
+
     d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
 }
 
