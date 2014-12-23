@@ -27,35 +27,35 @@ uint8_t is_outside_image(int row, int col, unsigned int width, unsigned int heig
 }
 
 uint8_t P2_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
+    return is_outside_image(row - 1, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
 }
 
 uint8_t P3_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col - 1)];
+    return is_outside_image(row - 1, col - 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col - 1)];
 }
 
 uint8_t P4_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[row * width + (col - 1)];
+    return is_outside_image(row, col - 1, width, height) ? BINARY_WHITE : data[row * width + (col - 1)];
 }
 
 uint8_t P5_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col - 1)];
+    return is_outside_image(row + 1, col - 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col - 1)];
 }
 
 uint8_t P6_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + col];
+    return is_outside_image(row + 1, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + col];
 }
 
 uint8_t P7_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col + 1)];
+    return is_outside_image(row + 1, col + 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col + 1)];
 }
 
 uint8_t P8_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[row * width + (col + 1)];
+    return is_outside_image(row, col + 1, width, height) ? BINARY_WHITE : data[row * width + (col + 1)];
 }
 
 uint8_t P9_f(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
-    return is_outside_image(row, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
+    return is_outside_image(row - 1, col + 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
 }
 
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
