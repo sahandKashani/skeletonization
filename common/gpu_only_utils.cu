@@ -51,12 +51,12 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
     // Dimensions of computing elements on the CUDA device.
     // Computing the grid dimensions depends on PAD_TOP and PAD_LEFT.
-    unsigned int block_dim_x = strtol(block_dim_x_string, NULL, 10);
-    unsigned int block_dim_y = strtol(block_dim_y_string, NULL, 10);
+    int block_dim_x = strtol(block_dim_x_string, NULL, 10);
+    int block_dim_y = strtol(block_dim_y_string, NULL, 10);
     assert((block_dim_x * block_dim_y) <= MAX_THREADS_PER_BLOCK);
 
-    unsigned int grid_dim_x = (unsigned int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
-    unsigned int grid_dim_y = (unsigned int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
+    int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
+    int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
     block_dim->x = block_dim_x;
     block_dim->y = block_dim_y;
     block_dim->z = 1;
@@ -96,8 +96,8 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
     Bitmap *new_image = createBitmap((*image)->width + padding.right, (*image)->height + padding.bottom, (*image)->depth);
 
     // copy original data into the center of the new buffer
-    for (unsigned int row = 0; row < new_image->height; row++) {
-        for (unsigned int col = 0; col < new_image->width; col++) {
+    for (int row = 0; row < new_image->height; row++) {
+        for (int col = 0; col < new_image->width; col++) {
 
             uint8_t is_bottom_row_padding_zone = ( ((new_image->height - padding.bottom) <= row) && (row <= (new_image->height-1)) );
             uint8_t is_right_col_padding_zone = ( ((new_image->width - padding.right) <= col) && (col <= (new_image->width-1)) );
@@ -126,8 +126,8 @@ void unpad_binary_bitmap(Bitmap** image, Padding padding) {
     Bitmap *new_image = createBitmap((*image)->width - padding.right, (*image)->height - padding.bottom, (*image)->depth);
 
     // copy data from larger image into the middle of the new buffer
-    for (unsigned int row = 0; row < new_image->height; row++) {
-        for (unsigned int col = 0; col < new_image->width; col++) {
+    for (int row = 0; row < new_image->height; row++) {
+        for (int col = 0; col < new_image->width; col++) {
             new_image->data[row * new_image->width + col] = (*image)->data[row * ((*image)->width) + col];
         }
     }

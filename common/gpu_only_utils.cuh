@@ -15,8 +15,8 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
 }
 
 typedef struct {
-    unsigned int bottom;
-    unsigned int right;
+    int bottom;
+    int right;
 } Padding;
 
 void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
