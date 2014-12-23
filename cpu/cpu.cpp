@@ -85,14 +85,14 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, unsigned int width, unsigned i
 uint8_t wb_transitions_around(uint8_t* data, int row, int col, unsigned int width, unsigned int height) {
     uint8_t count = 0;
 
-    count += ( (P2(data, row, col, width, height) == BINARY_WHITE) && (P3(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P3(data, row, col, width, height) == BINARY_WHITE) && (P4(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P4(data, row, col, width, height) == BINARY_WHITE) && (P5(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P5(data, row, col, width, height) == BINARY_WHITE) && (P6(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P6(data, row, col, width, height) == BINARY_WHITE) && (P7(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P7(data, row, col, width, height) == BINARY_WHITE) && (P8(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P8(data, row, col, width, height) == BINARY_WHITE) && (P9(data, row, col, width, height) == BINARY_BLACK) );
-    count += ( (P9(data, row, col, width, height) == BINARY_WHITE) && (P2(data, row, col, width, height) == BINARY_BLACK) );
+    count += ((P2(data, row, col, width, height) == BINARY_WHITE) && (P3(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P3(data, row, col, width, height) == BINARY_WHITE) && (P4(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P4(data, row, col, width, height) == BINARY_WHITE) && (P5(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P5(data, row, col, width, height) == BINARY_WHITE) && (P6(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P6(data, row, col, width, height) == BINARY_WHITE) && (P7(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P7(data, row, col, width, height) == BINARY_WHITE) && (P8(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P8(data, row, col, width, height) == BINARY_WHITE) && (P9(data, row, col, width, height) == BINARY_BLACK));
+    count += ((P9(data, row, col, width, height) == BINARY_WHITE) && (P2(data, row, col, width, height) == BINARY_BLACK));
 
     return count;
 }
