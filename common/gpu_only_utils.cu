@@ -65,9 +65,9 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("width = %u\n", (*src_bitmap)->width);
     printf("height = %u\n", (*src_bitmap)->height);
 
-    // Pad the binary images with pixels on each side. This will be useful when
-    // implementing the skeletonization algorithm, because the mask we use
-    // depends on P2 and P4, which also have their own window.
+    // Pad the binary images with pixels on the right and bottom. This will be
+    // useful when implementing the skeletonization algorithm, as we can make
+    // sure that all threads have some data to work on (even if it is bogus)
     // ATTENTION : it is important to use cast to (int) since we want to test
     // for a maximum value and the subtraction can yield a negative number.
     (*padding).top = PAD_TOP;
@@ -83,4 +83,58 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("block dim Y = %u\n", block_dim_y);
     printf("grid dim X = %u\n", grid_dim_x);
     printf("grid dim Y = %u\n", grid_dim_y);
+}
+
+// Pads the binary image given as input with the padding values provided as
+// input. The padding value must be a binary white (0) or black (1).
+void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding) {
+    assert(*image && "Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
+    assert((binary_padding_value == BINARY_BLACK || binary_padding_value == BINARY_WHITE) && "Must provide a binary value for padding");
+
+    // allocate buffer for image data with extra rows and extra columns
+    Bitmap *new_image = createBitmap((*image)->width + (padding.left + padding.right), (*image)->height + (padding.top + padding.bottom), (*image)->depth);
+
+    // copy original data into the center of the new buffer
+    for (unsigned int row = 0; row < new_image->height; row++) {
+        for (unsigned int col = 0; col < new_image->width; col++) {
+
+            uint8_t is_top_row_padding_zone = ( (0 <= row) && (row <= padding.top) );
+            uint8_t is_bottom_row_padding_zone = ( ((new_image->height - padding.bottom) <= row) && (row <= (new_image->height-1)) );
+            uint8_t is_left_col_padding_zone = ( (0 <= col) && (col <= padding.left) );
+            uint8_t is_right_col_padding_zone = ( ((new_image->width - padding.right) <= col) && (col <= (new_image->width-1)) );
+
+            if (is_top_row_padding_zone || is_bottom_row_padding_zone ||
+                is_left_col_padding_zone || is_right_col_padding_zone) {
+                // set the border pixels around the center image to binary_padding_value
+                new_image->data[row * (new_image->width) + col] = binary_padding_value;
+            } else {
+                // set the pixels in the center to the original image
+                new_image->data[row * (new_image->width) + col] = (*image)->data[(row-padding.top) * ((*image)->width) + (col-padding.left)];
+            }
+        }
+    }
+
+    free(*image);
+    *image = new_image;
+}
+
+// Unpads the image given as input by removing the amount of padding provided as
+// input.
+void unpad_binary_bitmap(Bitmap** image, Padding padding) {
+    assert(*image && "Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
+
+    // allocate buffer for image data with less rows and less columns
+    Bitmap *new_image = createBitmap((*image)->width - (padding.left + padding.right), (*image)->height - (padding.top + padding.bottom), (*image)->depth);
+
+    // copy data from larger image into the middle of the new buffer
+    for (unsigned int row = 0; row < new_image->height; row++) {
+        for (unsigned int col = 0; col < new_image->width; col++) {
+            new_image->data[row * new_image->width + col] = (*image)->data[(row+padding.top) * ((*image)->width) + (col+padding.left)];
+        }
+    }
+
+    free(*image);
+    *image = new_image;
 }

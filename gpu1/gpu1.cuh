@@ -2,7 +2,7 @@
 #define GPU1_CUH
 
 #include <stdint.h>
-#include "../common/utils.hpp"
+#include "../common/gpu_only_utils.cuh"
 
 __device__ uint8_t black_neighbors_around(uint8_t* data, unsigned int row, unsigned int col, unsigned int width);
 unsigned int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding, dim3 grid_dim, dim3 block_dim);
