@@ -97,6 +97,7 @@ Bitmap *loadBitmap(const char *fname) {
     h = nf.h0 + (nf.h1 << 8) + (nf.h2 << 16) + (nf.h3 << 24);
 
     out = (Bitmap*) malloc(sizeof(Bitmap) * w * h * (mode == 0 ? 3 : 1) + 3);
+    memset(out, 0, sizeof(Bitmap) * w * h * (mode == 0 ? 3 : 1) + 3);
     out->width = w;
     out->height = h;
     out->depth = mode == 0 ? 24 : 8;
