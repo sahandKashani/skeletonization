@@ -153,6 +153,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         fflush(stdout);
     } while (!are_identical_bitmaps);
 
+    gpuErrchk(cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost));
+
     // free memory on device
     gpuErrchk(cudaFree(d_src_data));
     gpuErrchk(cudaFree(d_dst_data));
