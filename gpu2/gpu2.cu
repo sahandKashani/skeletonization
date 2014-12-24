@@ -6,17 +6,26 @@
 #include "../common/gpu_only_utils.cuh"
 #include "../common/utils.hpp"
 
-void and_reduction(dim3 grid_dim, dim3 block_dim, uint8_t* d_pixel_equ, int pixel_equ_size) {
+void and_reduction(uint8_t* d_data, int size, dim3 grid_dim, dim3 block_dim) {
     int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-    int grid_size = grid_dim.x * grid_dim.y;
-    int block_size = block_dim.x * block_dim.y;
 
-    // iterative reductions of d_pixel_equ
+    grid_dim.x = grid_dim.x * grid_dim.y;
+    grid_dim.y = 1;
+    grid_dim.z = 1;
+
+    block_dim.x = block_dim.x * block_dim.y;
+    block_dim.y = 1;
+    block_dim.z = 1;
+
+    // iterative reductions of d_data
     do {
-        and_reduction<<<grid_size, block_size, shared_mem_size>>>(d_pixel_equ, pixel_equ_size);
-        pixel_equ_size = grid_size;
-        grid_size = ceil(grid_size / ((double) block_size));
-    } while (pixel_equ_size != 1);
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, size);
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+
+        size = grid_dim.x;
+        grid_dim.x = ceil(grid_dim.x / ((double) block_dim.x));
+    } while (size != 1);
 }
 
 // Adapted from Nvidia cuda SDK samples
@@ -132,9 +141,10 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
+        and_reduction(d_equ_data, data_size, grid_dim, block_dim);
+
         // bring data back from device
-        gpuErrchk(cudaMemcpy((*src_bitmap)->data, d_src_data, data_size, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(&are_identical_bitmaps, d_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
 
