@@ -140,7 +140,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
         and_reduction(d_equ_data, (*src_bitmap)->width, (*src_bitmap)->height, grid_dim, block_dim);
 
-        // bring data back from device
+        // bring reduced bitmap equality information back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, d_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
         swap_bitmaps((void**) &d_src_data, (void**) &d_dst_data);
@@ -150,6 +150,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         fflush(stdout);
     } while (!are_identical_bitmaps);
 
+    // bring dst_bitmap back from device
     gpuErrchk(cudaMemcpy((*dst_bitmap)->data, d_dst_data, data_size, cudaMemcpyDeviceToHost));
 
     // free memory on device
