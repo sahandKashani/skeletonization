@@ -121,11 +121,13 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     // send data to device
     gpuErrchk(cudaMemcpy(d_src_data, (*src_bitmap)->data, data_size, cudaMemcpyHostToDevice));
 
+    uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
         skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
+
         pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
@@ -139,11 +141,12 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         iterations++;
         printf(".");
         fflush(stdout);
-    } while (!are_identical_bitmaps(*src_bitmap, *dst_bitmap));
+    } while (!are_identical_bitmaps);
 
     // free memory on device
     gpuErrchk(cudaFree(d_src_data));
     gpuErrchk(cudaFree(d_dst_data));
+    gpuErrchk(cudaFree(d_equ_data));
 
     return iterations;
 }
