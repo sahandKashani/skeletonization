@@ -6,42 +6,39 @@
 #include "../common/gpu_only_utils.cuh"
 #include "../common/utils.hpp"
 
-void and_reduction(uint8_t* d_data, int size, dim3 grid_dim, dim3 block_dim) {
+void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim) {
     int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-
-    grid_dim.x = grid_dim.x * grid_dim.y;
-    grid_dim.y = 1;
-    grid_dim.z = 1;
-
-    block_dim.x = block_dim.x * block_dim.y;
-    block_dim.y = 1;
-    block_dim.z = 1;
 
     // iterative reductions of d_data
     do {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, size);
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, width, height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        size = grid_dim.x;
+        width = grid_dim.x;
+        height = grid_dim.y;
         grid_dim.x = ceil(grid_dim.x / ((double) block_dim.x));
-    } while (size != 1);
+        grid_dim.y = ceil(grid_dim.y / ((double) block_dim.y));
+    } while ((width * height) != 1);
 }
 
-// Adapted from Nvidia cuda SDK samples
-__global__ void and_reduction(uint8_t* d_data, int size) {
-    // shared memory for tile (without padding, unlike in skeletonize_pass)
+// Adapted for 2D arrays from Nvidia cuda SDK samples
+__global__ void and_reduction(uint8_t* d_data, int width, int height) {
+    // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
-    int tid = threadIdx.x;
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // load equality values into shared memory tile
-    s_data[tid] = (i < size) ? d_data[i] : 1; // we use 1 since it is a binary AND
+    int tid = threadIdx.y * blockDim.x + threadIdx.x;
+
+    // Load equality values into shared memory tile. We use 1 as the default
+    // value since it is a binary AND reduction
+    s_data[tid] = ((row < height) & (col < width)) ? d_data[row * width + col] : 1;
     __syncthreads();
 
     // do reduction in shared memory
-    for (int s = (blockDim.x / 2); s > 0; s >>= 1) {
+    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
         if (tid < s) {
             s_data[tid] &= s_data[tid + s];
         }
@@ -50,7 +47,7 @@ __global__ void and_reduction(uint8_t* d_data, int size) {
 
     // write result for this block to global memory
     if (tid == 0) {
-        d_data[blockIdx.x] = s_data[0];
+        d_data[blockIdx.y * gridDim.x + blockIdx.x] = s_data[0];
     }
 }
 
@@ -110,7 +107,7 @@ __global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out,
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (row < height & col < width) {
+    if ((row < height) & (col < width)) {
         d_out[row * width + col] = (d_in_1[row * width + col] == d_in_2[row * width + col]);
     }
 }
@@ -141,7 +138,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        and_reduction(d_equ_data, data_size, grid_dim, block_dim);
+        and_reduction(d_equ_data, (*src_bitmap)->width, (*src_bitmap)->height, grid_dim, block_dim);
 
         // bring data back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, d_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
@@ -168,7 +165,7 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (row < height & col < width) {
+    if ((row < height) & (col < width)) {
         uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
         uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
         uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
