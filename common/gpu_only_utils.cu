@@ -45,6 +45,50 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     *dst_bitmap = createBitmap((*src_bitmap)->width, (*src_bitmap)->height, (*src_bitmap)->depth);
     assert(*dst_bitmap != NULL && "Error: could not allocate memory for dst_bitmap");
 
+    printf("image information\n");
+    printf("=================\n");
+    printf("    width = %u\n", (*src_bitmap)->width);
+    printf("    height = %u\n", (*src_bitmap)->height);
+
+    // check for cuda-capable device
+    int cuda_device_count;
+    gpuErrchk(cudaGetDeviceCount(&cuda_device_count));
+    assert(cuda_device_count > 0 && "Error: no CUDA-capable device detected");
+
+    // select a cuda-capable device
+    int cuda_device_id;
+    cudaDeviceProp cuda_device_properties;
+    memset(&cuda_device_properties, 0, sizeof(cudaDeviceProp));
+    // Would like any cuda-capable device with compute capability 2.0 (because
+    // the compiler generates code with abnormally high register usage for 1.0
+    // devices)
+    cuda_device_properties.major = 2;
+    cuda_device_properties.minor = 0;
+    gpuErrchk(cudaChooseDevice(&cuda_device_id, &cuda_device_properties));
+    gpuErrchk(cudaSetDevice(cuda_device_id));
+
+    // print some info about the chosen GPU
+    gpuErrchk(cudaGetDeviceProperties(&cuda_device_properties, cuda_device_id));
+    printf("cuda device information\n");
+    printf("=======================\n");
+    printf("    device name = %s\n", cuda_device_properties.name);
+    printf("    Compute capability = %d.%d\n", cuda_device_properties.major, cuda_device_properties.minor);
+    printf("    multiprocessor count = %d\n", cuda_device_properties.multiProcessorCount);
+    printf("    total global memory = %lu\n", cuda_device_properties.totalGlobalMem);
+    printf("    total constant memory = %lu\n", cuda_device_properties.totalConstMem);
+    printf("    shared memory per block = %lu\n", cuda_device_properties.sharedMemPerBlock);
+    printf("    registers per block = %d\n", cuda_device_properties.regsPerBlock);
+    printf("    max threads per block = %d\n", cuda_device_properties.maxThreadsPerBlock);
+    printf("    max thread dimensions = (%d, %d, %d)\n", cuda_device_properties.maxThreadsDim[0], cuda_device_properties.maxThreadsDim[1], cuda_device_properties.maxThreadsDim[2]);
+    printf("    max grid dimensions = (%d, %d, %d)\n", cuda_device_properties.maxGridSize[0], cuda_device_properties.maxGridSize[1], cuda_device_properties.maxGridSize[2]);
+    printf("    warp size = %d\n", cuda_device_properties.warpSize);
+    printf("    kernel execution timeout = ");
+    if (cuda_device_properties.kernelExecTimeoutEnabled) {
+        printf("true\n");
+    } else {
+        printf("false\n");
+    }
+
     // Dimensions of computing elements on the CUDA device.
     int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     int block_dim_y = strtol(block_dim_y_string, NULL, 10);
@@ -59,10 +103,10 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     grid_dim->y = grid_dim_y;
     grid_dim->z = 1;
 
-    printf("width = %u\n", (*src_bitmap)->width);
-    printf("height = %u\n", (*src_bitmap)->height);
-    printf("block dim X = %u\n", block_dim_x);
-    printf("block dim Y = %u\n", block_dim_y);
-    printf("grid dim X = %u\n", grid_dim_x);
-    printf("grid dim Y = %u\n", grid_dim_y);
+    printf("cuda runtime information\n");
+    printf("========================\n");
+    printf("    block dim X = %u\n", block_dim_x);
+    printf("    block dim Y = %u\n", block_dim_y);
+    printf("    grid dim X = %u\n", grid_dim_x);
+    printf("    grid dim Y = %u\n", grid_dim_y);
 }
