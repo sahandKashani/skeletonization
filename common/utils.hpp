@@ -15,6 +15,8 @@ void copy_bitmap(Bitmap* src, Bitmap* dst);
 void grayscale_to_binary(Bitmap* image);
 uint8_t is_binary_image(Bitmap* image);
 uint8_t is_binary_valued_grayscale_image(Bitmap* image);
+double percentage_black_pixels(Bitmap* image);
+double percentage_white_pixels(Bitmap* image);
 void print_bitmap_info(const char* fname);
 void swap_bitmaps(void** src, void** dst);
 
