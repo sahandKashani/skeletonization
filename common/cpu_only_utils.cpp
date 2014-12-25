@@ -31,9 +31,6 @@ void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     *src_bitmap = loadBitmap(src_fname);
     assert(*src_bitmap != NULL && "Error: could not load src_bitmap");
 
-    printf("width = %u\n", (*src_bitmap)->width);
-    printf("height = %u\n", (*src_bitmap)->height);
-
     // validate src image is 8-bit binary-valued grayscale image
     assert(is_binary_valued_grayscale_image(*src_bitmap) && "Error: Only 8-bit binary-valued grayscale images are supported. Values must be black (0) or white (255) only");
 
@@ -43,4 +40,11 @@ void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // Create dst bitmap image (empty for now)
     *dst_bitmap = createBitmap((*src_bitmap)->width, (*src_bitmap)->height, (*src_bitmap)->depth);
     assert(*dst_bitmap != NULL && "Error: could not allocate memory for dst_bitmap");
+
+    printf("image information\n");
+    printf("=================\n");
+    printf("    width = %u\n", (*src_bitmap)->width);
+    printf("    height = %u\n", (*src_bitmap)->height);
+    printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
+    printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
 }
