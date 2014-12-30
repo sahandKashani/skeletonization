@@ -94,9 +94,12 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // Dimensions of computing elements on the CUDA device.
     int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     int block_dim_y = strtol(block_dim_y_string, NULL, 10);
-    assert(((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock) && "Error: Using more threads than permitted by maxThreadsPerBlock");
-    assert(((block_dim_x * block_dim_y) > 0) && "Error: Must provide a non-zero number of threads in each dimension of a block");
+    assert((block_dim_x > 1) && "Error: block_dim_x must be larger than 1");
+    assert((block_dim_y > 1) && "Error: block_dim_y must be larger than 1");
+    assert(is_power_of_2(block_dim_x) && "Error: block_dim_x must be a power of 2");
+    assert(is_power_of_2(block_dim_y) && "Error: block_dim_y must be a power of 2");
     assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
+    assert(((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock) && "Error: Using more threads than permitted by maxThreadsPerBlock");
 
     int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
     int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
@@ -138,6 +141,10 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
     printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
     printf("\n");
+}
+
+uint8_t is_power_of_2(uint8_t x) {
+    return (x != 0) && ((x & (x - 1)) == 0);
 }
 
 // Pads the binary image given as input with the padding values provided as

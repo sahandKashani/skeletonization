@@ -20,6 +20,7 @@ typedef struct {
 
 void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
 void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding, dim3* grid_dim, dim3* block_dim);
+uint8_t is_power_of_2(uint8_t x);
 void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding);
 void unpad_binary_bitmap(Bitmap** image, Padding padding);
 
