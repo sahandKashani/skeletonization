@@ -2,7 +2,7 @@
 #define GPU2_CUH
 
 #include <stdint.h>
-#include "../common/utils.hpp"
+#include "../common/lspbmp.hpp"
 
 void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim);
 __global__ void and_reduction(uint8_t* d_data, int width);

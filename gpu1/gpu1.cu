@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "gpu1.cuh"
 #include "../common/gpu_only_utils.cuh"
+#include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
 // Computes the number of black neighbors around a pixel.

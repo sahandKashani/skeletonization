@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "gpu2.cuh"
 #include "../common/gpu_only_utils.cuh"
+#include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
 void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim) {

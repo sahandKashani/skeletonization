@@ -1,8 +1,9 @@
 #ifndef GPU_ONLY_UTILS_CUH
 #define GPU_ONLY_UTILS_CUH
 
+#include <stdint.h>
+#include <stdio.h>
 #include "lspbmp.hpp"
-#include "utils.hpp"
 
 #define gpuErrchk(ans) (gpuAssert((ans), __FILE__, __LINE__))
 inline void gpuAssert(cudaError_t code, const char* file, int line) {

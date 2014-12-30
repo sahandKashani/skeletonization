@@ -2,7 +2,7 @@
 #define GPU1_CUH
 
 #include <stdint.h>
-#include "../common/gpu_only_utils.cuh"
+#include "../common/lspbmp.hpp"
 
 __device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int width, int height);
 __device__ uint8_t is_outside_image(int row, int col, int width, int height);
