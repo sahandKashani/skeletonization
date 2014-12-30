@@ -11,7 +11,7 @@ void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 b
 
     // iterative reductions of d_data
     do {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, width, height);
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, width);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -23,7 +23,7 @@ void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 b
 }
 
 // Adapted for 2D arrays from Nvidia cuda SDK samples
-__global__ void and_reduction(uint8_t* d_data, int width, int height) {
+__global__ void and_reduction(uint8_t* d_data, int width) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
@@ -32,9 +32,10 @@ __global__ void and_reduction(uint8_t* d_data, int width, int height) {
 
     int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
-    // Load equality values into shared memory tile. We use 1 as the default
-    // value since it is a binary AND reduction
-    s_data[tid] = ((row < height) & (col < width)) ? d_data[row * width + col] : 1;
+    // Load equality values into shared memory tile. We don't use any default
+    // value, because of the implicit padding done in main() which gives data to
+    // all grid threads.
+    s_data[tid] = d_data[row * width + col];
     __syncthreads();
 
     // do reduction in shared memory
@@ -107,9 +108,7 @@ __global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out,
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if ((row < height) & (col < width)) {
-        d_out[row * width + col] = (d_in_1[row * width + col] == d_in_2[row * width + col]);
-    }
+    d_out[row * width + col] = (d_in_1[row * width + col] == d_in_2[row * width + col]);
 }
 
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
@@ -166,24 +165,22 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if ((row < height) & (col < width)) {
-        uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
-        uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
-        uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
-        uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height);
-        uint8_t P2 = P2_f(d_src, row, col, width, height);
-        uint8_t P4 = P4_f(d_src, row, col, width, height);
-        uint8_t P6 = P6_f(d_src, row, col, width, height);
-        uint8_t P8 = P8_f(d_src, row, col, width, height);
+    uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
+    uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
+    uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
+    uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height);
+    uint8_t P2 = P2_f(d_src, row, col, width, height);
+    uint8_t P4 = P4_f(d_src, row, col, width, height);
+    uint8_t P6 = P6_f(d_src, row, col, width, height);
+    uint8_t P8 = P8_f(d_src, row, col, width, height);
 
-        uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
-        uint8_t thinning_cond_2 = (TR_P1 == 1);
-        uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
-        uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
-        uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+    uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
+    uint8_t thinning_cond_2 = (TR_P1 == 1);
+    uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
+    uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
+    uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-        d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
-    }
+    d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
 }
 
 // Computes the number of white to black transitions around a pixel.
@@ -205,15 +202,16 @@ __device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, int 
 int main(int argc, char** argv) {
     Bitmap* src_bitmap = NULL;
     Bitmap* dst_bitmap = NULL;
+    Padding padding;
     dim3 grid_dim;
     dim3 block_dim;
 
-    gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &grid_dim, &block_dim);
+    gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding, &grid_dim, &block_dim);
 
     int iterations = skeletonize(&src_bitmap, &dst_bitmap, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
 
-    gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap);
+    gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
 
     return EXIT_SUCCESS;
 }

@@ -5,7 +5,7 @@
 #include "../common/utils.hpp"
 
 void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim);
-__global__ void and_reduction(uint8_t* d_data, int width, int height);
+__global__ void and_reduction(uint8_t* d_data, int width);
 __device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int width, int height);
 __device__ uint8_t is_outside_image(int row, int col, int width, int height);
 __device__ uint8_t P2_f(uint8_t* data, int row, int col, int width, int height);
