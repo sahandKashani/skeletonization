@@ -33,9 +33,6 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     char* block_dim_x_string = argv[3];
     char* block_dim_y_string = argv[4];
 
-    printf("src_fname = %s\n", src_fname);
-    printf("dst_fname = %s\n", dst_fname);
-
     // load src image
     *src_bitmap = loadBitmap(src_fname);
     assert((*src_bitmap != NULL) && "Error: could not load src_bitmap");
@@ -49,13 +46,6 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // Create dst bitmap image (empty for now)
     *dst_bitmap = createBitmap((*src_bitmap)->width, (*src_bitmap)->height, (*src_bitmap)->depth);
     assert((*dst_bitmap != NULL) && "Error: could not allocate memory for dst_bitmap");
-
-    printf("image information\n");
-    printf("=================\n");
-    printf("    width = %u\n", (*src_bitmap)->width);
-    printf("    height = %u\n", (*src_bitmap)->height);
-    printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
-    printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
 
     // check for cuda-capable device
     int cuda_device_count;
@@ -95,12 +85,14 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     } else {
         printf("false\n");
     }
+    printf("\n");
 
     // Dimensions of computing elements on the CUDA device.
     int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     int block_dim_y = strtol(block_dim_y_string, NULL, 10);
     assert(((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock) && "Error: Using more threads than permitted by maxThreadsPerBlock");
-    assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
+    // TODO : enable this
+    // assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
 
     int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
     int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
@@ -111,12 +103,25 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     grid_dim->y = grid_dim_y;
     grid_dim->z = 1;
 
+    printf("src_fname = %s\n", src_fname);
+    printf("dst_fname = %s\n", dst_fname);
+    printf("\n");
+
+    printf("image information\n");
+    printf("=================\n");
+    printf("    width = %u\n", (*src_bitmap)->width);
+    printf("    height = %u\n", (*src_bitmap)->height);
+    printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
+    printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
+    printf("\n");
+
     printf("cuda runtime information\n");
     printf("========================\n");
     printf("    block dim X = %u\n", block_dim_x);
     printf("    block dim Y = %u\n", block_dim_y);
     printf("    grid dim X = %u\n", grid_dim_x);
     printf("    grid dim Y = %u\n", grid_dim_y);
+    printf("\n");
 
     // Pad the binary images with pixels on the right and bottom. This will be
     // useful when implementing the skeletonization algorithm, as we can make
@@ -125,6 +130,14 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     (*padding).right = (grid_dim_x * block_dim_x) - ((*src_bitmap)->width);
     pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
     pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
+
+    printf("image information after padding\n");
+    printf("===============================\n");
+    printf("    width = %u\n", (*src_bitmap)->width);
+    printf("    height = %u\n", (*src_bitmap)->height);
+    printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
+    printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
+    printf("\n");
 }
 
 // Pads the binary image given as input with the padding values provided as
