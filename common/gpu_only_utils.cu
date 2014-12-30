@@ -98,8 +98,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // Dimensions of computing elements on the CUDA device.
     int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     int block_dim_y = strtol(block_dim_y_string, NULL, 10);
-    // TODO : add a check with the actual max block size computed above
-    assert((block_dim_x * block_dim_y) <= MAX_THREADS_PER_BLOCK);
+    assert((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock && "Error: Using more threads than permitted by maxThreadsPerBlock");
 
     int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
     int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
@@ -129,9 +128,9 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 // Pads the binary image given as input with the padding values provided as
 // input. The padding value must be a binary white (0) or black (1).
 void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding) {
-    assert(*image && "Bitmap must be non-NULL");
-    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
-    assert((binary_padding_value == BINARY_BLACK || binary_padding_value == BINARY_WHITE) && "Must provide a binary value for padding");
+    assert(*image && "Error: Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Error: Must supply a binary image as input: only black (1) and white (0) are allowed");
+    assert((binary_padding_value == BINARY_BLACK || binary_padding_value == BINARY_WHITE) && "Error: Must provide a binary value for padding");
 
     // allocate buffer for image data with extra rows and extra columns
     Bitmap *new_image = createBitmap((*image)->width + padding.right, (*image)->height + padding.bottom, (*image)->depth);
@@ -160,8 +159,8 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
 // Unpads the image given as input by removing the amount of padding provided as
 // input.
 void unpad_binary_bitmap(Bitmap** image, Padding padding) {
-    assert(*image && "Bitmap must be non-NULL");
-    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
+    assert(*image && "Error: Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Error: Must supply a binary image as input: only black (1) and white (0) are allowed");
 
     // allocate buffer for image data with less rows and less columns
     Bitmap *new_image = createBitmap((*image)->width - padding.right, (*image)->height - padding.bottom, (*image)->depth);

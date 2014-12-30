@@ -4,8 +4,6 @@
 #include "lspbmp.hpp"
 #include "utils.hpp"
 
-#define MAX_THREADS_PER_BLOCK 1024
-
 #define gpuErrchk(ans) (gpuAssert((ans), __FILE__, __LINE__))
 inline void gpuAssert(cudaError_t code, const char* file, int line) {
     if (code != cudaSuccess) {
