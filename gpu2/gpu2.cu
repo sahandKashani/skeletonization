@@ -105,7 +105,7 @@ __device__ uint8_t P9_f(uint8_t* data, int row, int col, int width, int height) 
     return is_outside_image(row - 1, col + 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
 }
 
-__global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, int width, int height) {
+__global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, int width) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -134,7 +134,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_equ_data, (*src_bitmap)->width);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
