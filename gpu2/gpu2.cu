@@ -50,7 +50,6 @@ __global__ void and_reduction(uint8_t* d_data, int width, int height) {
     if (tid == 0) {
         int write_data = s_data[0];
         global_mem_write(d_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
-        // d_data[blockIdx.y * gridDim.x + blockIdx.x] = s_data[0];
     }
 }
 
