@@ -207,10 +207,30 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
         s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
     } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == 0)) {
         // bottom-left corner
+        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, width, height);
+        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+
+        s_src[(s_row + 1) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row + 1, d_col - 2, width, height);
+        s_src[(s_row + 1) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row + 1, d_col - 1, width, height);
+        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, width, height);
     } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == (blockDim.x - 1))) {
         // bottom-right corner
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, width, height);
+
+        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, width, height);
+        s_src[(s_row + 1) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row + 1, d_col + 1, width, height);
     } else if ((threadIdx.y == 0) & (threadIdx.x == (blockDim.x - 1))) {
         // top-right corner
+        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, width, height);
+        s_src[(s_row - 2) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row - 2, d_col + 1, width, height);
+
+        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, width, height);
+        s_src[(s_row - 1) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row - 1, d_col + 1, width, height);
+
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, width, height);
     } else if (threadIdx.y == 0) {
         // PAD_TOP top rows
     } else if (threadIdx.x == 0) {
