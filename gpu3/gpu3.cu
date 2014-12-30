@@ -7,6 +7,11 @@
 #include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
+#define PAD_TOP 2
+#define PAD_LEFT 2
+#define PAD_BOTTOM 1
+#define PAD_RIGHT 1
+
 void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim) {
     int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
 
@@ -141,7 +146,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
-        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        int skeletonize_pass_shared_mem_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
+        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -174,8 +180,51 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int height) {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    // shared memory for tile
+    extern __shared__ uint8_t s_src[];
+
+    int d_row = blockIdx.y * blockDim.y + threadIdx.y;
+    int d_col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int s_row = threadIdx.y + PAD_TOP;
+    int s_col = threadIdx.x + PAD_LEFT;
+    int s_width = blockDim.x + PAD_LEFT + PAD_RIGHT;
+
+    // load data into shared memory
+
+    if ((threadIdx.y == 0) & (threadIdx.x == 0)) {
+        // top-left corner
+        s_src[(s_row - 2) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row - 2, d_col - 2, width, height);
+        s_src[(s_row - 2) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row - 2, d_col - 1, width, height);
+        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, width, height);
+
+        s_src[(s_row - 1) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row - 1, d_col - 2, width, height);
+        s_src[(s_row - 1) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row - 1, d_col - 1, width, height);
+        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, width, height);
+
+        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, width, height);
+        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+    } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == 0)) {
+        // bottom-left corner
+    } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == (blockDim.x - 1))) {
+        // bottom-right corner
+    } else if ((threadIdx.y == 0) & (threadIdx.x == (blockDim.x - 1))) {
+        // top-right corner
+    } else if (threadIdx.y == 0) {
+        // PAD_TOP top rows
+    } else if (threadIdx.x == 0) {
+        // PAD_LEFT left rows
+    } else if (threadIdx.y == (blockDim.y - 1)) {
+        // PAD_BOTTOM bottom rows
+    } else if (threadIdx.x == (blockDim.x - 1)) {
+        // PAD_RIGHT right rows
+    } else {
+        // center pixels
+        s_src[s_row * s_width + s_col] = global_mem_read(d_src, d_row, d_col, width, height);
+    }
+
+    __syncthreads();
 
     uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
     uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
