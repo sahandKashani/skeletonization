@@ -211,6 +211,7 @@ int main(int argc, char** argv) {
 
     int iterations = skeletonize(&src_bitmap, &dst_bitmap, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
+    printf("\n");
 
     gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
 
