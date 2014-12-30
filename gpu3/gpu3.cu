@@ -256,14 +256,14 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
 
     __syncthreads();
 
-    uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
-    uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
-    uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
-    uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height);
-    uint8_t P2 = P2_f(d_src, row, col, width, height);
-    uint8_t P4 = P4_f(d_src, row, col, width, height);
-    uint8_t P6 = P6_f(d_src, row, col, width, height);
-    uint8_t P8 = P8_f(d_src, row, col, width, height);
+    uint8_t NZ = black_neighbors_around(d_src, d_row, d_col, width, height);
+    uint8_t TR_P1 = wb_transitions_around(d_src, d_row, d_col, width, height);
+    uint8_t TR_P2 = wb_transitions_around(d_src, d_row - 1, d_col, width, height);
+    uint8_t TR_P4 = wb_transitions_around(d_src, d_row, d_col - 1, width, height);
+    uint8_t P2 = P2_f(d_src, d_row, d_col, width, height);
+    uint8_t P4 = P4_f(d_src, d_row, d_col, width, height);
+    uint8_t P6 = P6_f(d_src, d_row, d_col, width, height);
+    uint8_t P8 = P8_f(d_src, d_row, d_col, width, height);
 
     uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
     uint8_t thinning_cond_2 = (TR_P1 == 1);
@@ -271,8 +271,8 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(d_src, row, col, width, height));
-    global_mem_write(d_dst, row, col, width, height, write_data);
+    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(d_src, d_row, d_col, width, height));
+    global_mem_write(d_dst, d_row, d_col, width, height, write_data);
 }
 
 // Computes the number of white to black transitions around a pixel.
