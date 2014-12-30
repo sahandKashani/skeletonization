@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include "../common/lspbmp.hpp"
-#include "../common/utils.hpp"
 
 uint8_t black_neighbors_around(uint8_t* data, int row, int col, int width, int height);
 inline uint8_t is_outside_image(int row, int col, int width, int height);
