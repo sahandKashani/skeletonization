@@ -12,7 +12,7 @@ void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 b
 
     // iterative reductions of d_data
     do {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, width);
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(d_data, width, height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -24,7 +24,7 @@ void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 b
 }
 
 // Adapted for 2D arrays from Nvidia cuda SDK samples
-__global__ void and_reduction(uint8_t* d_data, int width) {
+__global__ void and_reduction(uint8_t* d_data, int width, int height) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
@@ -33,10 +33,9 @@ __global__ void and_reduction(uint8_t* d_data, int width) {
 
     int tid = threadIdx.y * blockDim.x + threadIdx.x;
 
-    // Load equality values into shared memory tile. We don't use any default
-    // value, because of the implicit padding done in main() which gives data to
-    // all grid threads.
-    s_data[tid] = d_data[row * width + col];
+    // Load equality values into shared memory tile. We use 1 as the default
+    // value, as it is an AND reduction
+    s_data[tid] = is_outside_image(row, col, width, height) ? 1 : global_mem_read(d_data, row, col, width, height);;
     __syncthreads();
 
     // do reduction in shared memory
@@ -49,7 +48,9 @@ __global__ void and_reduction(uint8_t* d_data, int width) {
 
     // write result for this block to global memory
     if (tid == 0) {
-        d_data[blockIdx.y * gridDim.x + blockIdx.x] = s_data[0];
+        int write_data = s_data[0];
+        global_mem_write(d_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
+        // d_data[blockIdx.y * gridDim.x + blockIdx.x] = s_data[0];
     }
 }
 
@@ -69,47 +70,58 @@ __device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int
     return count;
 }
 
+__device__ uint8_t global_mem_read(uint8_t* d_data, int row, int col, int width, int height) {
+    return is_outside_image(row, col, width, height) ? BINARY_WHITE : d_data[row * width + col];
+}
+
+__device__ void global_mem_write(uint8_t* d_data, int row, int col, int width, int height, uint8_t write_data) {
+    if (!is_outside_image(row, col, width, height)) {
+        d_data[row * width + col] = write_data;
+    }
+}
+
 __device__ uint8_t is_outside_image(int row, int col, int width, int height) {
     return (row < 0) | (row > (height - 1)) | (col < 0) | (col > (width - 1));
 }
 
 __device__ uint8_t P2_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
+    return global_mem_read(data, row - 1, col, width, height);
 }
 
 __device__ uint8_t P3_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col - 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col - 1)];
+    return global_mem_read(data, row - 1, col - 1, width, height);
 }
 
 __device__ uint8_t P4_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row, col - 1, width, height) ? BINARY_WHITE : data[row * width + (col - 1)];
+    return global_mem_read(data, row, col - 1, width, height);
 }
 
 __device__ uint8_t P5_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col - 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col - 1)];
+    return global_mem_read(data, row + 1, col - 1, width, height);
 }
 
 __device__ uint8_t P6_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + col];
+    return global_mem_read(data, row + 1, col, width, height);
 }
 
 __device__ uint8_t P7_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col + 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col + 1)];
+    return global_mem_read(data, row + 1, col + 1, width, height);
 }
 
 __device__ uint8_t P8_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row, col + 1, width, height) ? BINARY_WHITE : data[row * width + (col + 1)];
+    return global_mem_read(data, row, col + 1, width, height);
 }
 
 __device__ uint8_t P9_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col + 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
+    return global_mem_read(data, row - 1, col + 1, width, height);
 }
 
-__global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, int width) {
+__global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, int width, int height) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    d_out[row * width + col] = (d_in_1[row * width + col] == d_in_2[row * width + col]);
+    int write_data = (global_mem_read(d_in_1, row, col, width, height) == global_mem_read(d_in_2, row, col, width, height));
+    global_mem_write(d_out, row, col, width, height, write_data);
 }
 
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
@@ -134,7 +146,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_equ_data, (*src_bitmap)->width);
+        pixel_equality<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, d_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -181,7 +193,8 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
+    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(d_src, row, col, width, height));
+    global_mem_write(d_dst, row, col, width, height, write_data);
 }
 
 // Computes the number of white to black transitions around a pixel.
@@ -203,17 +216,16 @@ __device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, int 
 int main(int argc, char** argv) {
     Bitmap* src_bitmap = NULL;
     Bitmap* dst_bitmap = NULL;
-    Padding padding;
     dim3 grid_dim;
     dim3 block_dim;
 
-    gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding, &grid_dim, &block_dim);
+    gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &grid_dim, &block_dim);
 
     int iterations = skeletonize(&src_bitmap, &dst_bitmap, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
     printf("\n");
 
-    gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
+    gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap);
 
     return EXIT_SUCCESS;
 }
