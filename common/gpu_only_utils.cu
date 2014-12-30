@@ -124,8 +124,6 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     (*padding).right = (grid_dim_x * block_dim_x) - ((*src_bitmap)->width);
     pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
     pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
-    printf("padded width = %u\n", (*src_bitmap)->width);
-    printf("padded height = %u\n", (*src_bitmap)->height);
 }
 
 // Pads the binary image given as input with the padding values provided as
