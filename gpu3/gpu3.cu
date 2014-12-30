@@ -59,17 +59,17 @@ __global__ void and_reduction(uint8_t* d_data, int width, int height) {
 }
 
 // Computes the number of black neighbors around a pixel.
-__device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int width, int height) {
+__device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int width) {
     uint8_t count = 0;
 
-    count += (P2_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P3_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P4_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P5_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P6_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P7_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P8_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P9_f(d_data, row, col, width, height) == BINARY_BLACK);
+    count += (P2_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P3_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P4_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P5_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P6_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P7_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P8_f(d_data, row, col, width) == BINARY_BLACK);
+    count += (P9_f(d_data, row, col, width) == BINARY_BLACK);
 
     return count;
 }
@@ -88,36 +88,36 @@ __device__ uint8_t is_outside_image(int row, int col, int width, int height) {
     return (row < 0) | (row > (height - 1)) | (col < 0) | (col > (width - 1));
 }
 
-__device__ uint8_t P2_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row - 1, col, width, height);
+__device__ uint8_t P2_f(uint8_t* data, int row, int col, int width) {
+    return data[(row - 1) * width + col];
 }
 
-__device__ uint8_t P3_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row - 1, col - 1, width, height);
+__device__ uint8_t P3_f(uint8_t* data, int row, int col, int width) {
+    return data[(row - 1) * width + (col - 1)];
 }
 
-__device__ uint8_t P4_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row, col - 1, width, height);
+__device__ uint8_t P4_f(uint8_t* data, int row, int col, int width) {
+    return data[row * width + (col - 1)];
 }
 
-__device__ uint8_t P5_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row + 1, col - 1, width, height);
+__device__ uint8_t P5_f(uint8_t* data, int row, int col, int width) {
+    return data[(row + 1) * width + (col - 1)];
 }
 
-__device__ uint8_t P6_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row + 1, col, width, height);
+__device__ uint8_t P6_f(uint8_t* data, int row, int col, int width) {
+    return data[(row + 1) * width + col];
 }
 
-__device__ uint8_t P7_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row + 1, col + 1, width, height);
+__device__ uint8_t P7_f(uint8_t* data, int row, int col, int width) {
+    return data[(row + 1) * width + (col + 1)];
 }
 
-__device__ uint8_t P8_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row, col + 1, width, height);
+__device__ uint8_t P8_f(uint8_t* data, int row, int col, int width) {
+    return data[row * width + (col + 1)];
 }
 
-__device__ uint8_t P9_f(uint8_t* data, int row, int col, int width, int height) {
-    return global_mem_read(data, row - 1, col + 1, width, height);
+__device__ uint8_t P9_f(uint8_t* data, int row, int col, int width) {
+    return data[(row - 1) * width + (col + 1)];
 }
 
 __global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, int width, int height) {
@@ -179,7 +179,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int height) {
+__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int d_width, int d_height) {
     // shared memory for tile
     extern __shared__ uint8_t s_src[];
 
@@ -191,79 +191,78 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     int s_width = blockDim.x + PAD_LEFT + PAD_RIGHT;
 
     // load data into shared memory
-
     if ((threadIdx.y == 0) & (threadIdx.x == 0)) {
         // top-left corner
-        s_src[(s_row - 2) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row - 2, d_col - 2, width, height);
-        s_src[(s_row - 2) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row - 2, d_col - 1, width, height);
-        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, width, height);
+        s_src[(s_row - 2) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row - 2, d_col - 2, d_width, d_height);
+        s_src[(s_row - 2) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row - 2, d_col - 1, d_width, d_height);
+        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, d_width, d_height);
 
-        s_src[(s_row - 1) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row - 1, d_col - 2, width, height);
-        s_src[(s_row - 1) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row - 1, d_col - 1, width, height);
-        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, width, height);
+        s_src[(s_row - 1) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row - 1, d_col - 2, d_width, d_height);
+        s_src[(s_row - 1) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row - 1, d_col - 1, d_width, d_height);
+        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, d_width, d_height);
 
-        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, width, height);
-        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, width, height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
     } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == 0)) {
         // bottom-left corner
-        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, width, height);
-        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, width, height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
 
-        s_src[(s_row + 1) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row + 1, d_col - 2, width, height);
-        s_src[(s_row + 1) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row + 1, d_col - 1, width, height);
-        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, width, height);
+        s_src[(s_row + 1) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row + 1, d_col - 2, d_width, d_height);
+        s_src[(s_row + 1) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row + 1, d_col - 1, d_width, d_height);
+        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, d_width, d_height);
     } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == (blockDim.x - 1))) {
         // bottom-right corner
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
-        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, d_width, d_height);
 
-        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, width, height);
-        s_src[(s_row + 1) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row + 1, d_col + 1, width, height);
+        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, d_width, d_height);
+        s_src[(s_row + 1) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row + 1, d_col + 1, d_width, d_height);
     } else if ((threadIdx.y == 0) & (threadIdx.x == (blockDim.x - 1))) {
         // top-right corner
-        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, width, height);
-        s_src[(s_row - 2) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row - 2, d_col + 1, width, height);
+        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, d_width, d_height);
+        s_src[(s_row - 2) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row - 2, d_col + 1, d_width, d_height);
 
-        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, width, height);
-        s_src[(s_row - 1) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row - 1, d_col + 1, width, height);
+        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, d_width, d_height);
+        s_src[(s_row - 1) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row - 1, d_col + 1, d_width, d_height);
 
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
-        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, d_width, d_height);
     } else if (threadIdx.y == 0) {
         // PAD_TOP top rows
-        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, width, height);
-        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, width, height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(d_src, d_row - 2, d_col, d_width, d_height);
+        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(d_src, d_row - 1, d_col, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
     } else if (threadIdx.x == 0) {
         // PAD_LEFT left rows
-        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, width, height);
-        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, width, height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(d_src, d_row, d_col - 2, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(d_src, d_row, d_col - 1, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
     } else if (threadIdx.y == (blockDim.y - 1)) {
         // PAD_BOTTOM bottom rows
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
-        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
+        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(d_src, d_row + 1, d_col, d_width, d_height);
     } else if (threadIdx.x == (blockDim.x - 1)) {
         // PAD_RIGHT right rows
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
-        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
+        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(d_src, d_row, d_col + 1, d_width, d_height);
     } else {
         // center pixels
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, width, height);
+        s_src[(s_row) * s_width + (s_col)] = global_mem_read(d_src, d_row, d_col, d_width, d_height);
     }
 
     __syncthreads();
 
-    uint8_t NZ = black_neighbors_around(d_src, d_row, d_col, width, height);
-    uint8_t TR_P1 = wb_transitions_around(d_src, d_row, d_col, width, height);
-    uint8_t TR_P2 = wb_transitions_around(d_src, d_row - 1, d_col, width, height);
-    uint8_t TR_P4 = wb_transitions_around(d_src, d_row, d_col - 1, width, height);
-    uint8_t P2 = P2_f(d_src, d_row, d_col, width, height);
-    uint8_t P4 = P4_f(d_src, d_row, d_col, width, height);
-    uint8_t P6 = P6_f(d_src, d_row, d_col, width, height);
-    uint8_t P8 = P8_f(d_src, d_row, d_col, width, height);
+    uint8_t NZ = black_neighbors_around(s_src, s_row, s_col, s_width);
+    uint8_t TR_P1 = wb_transitions_around(s_src, s_row, s_col, s_width);
+    uint8_t TR_P2 = wb_transitions_around(s_src, s_row - 1, s_col, s_width);
+    uint8_t TR_P4 = wb_transitions_around(s_src, s_row, s_col - 1, s_width);
+    uint8_t P2 = P2_f(s_src, s_row, s_col, s_width);
+    uint8_t P4 = P4_f(s_src, s_row, s_col, s_width);
+    uint8_t P6 = P6_f(s_src, s_row, s_col, s_width);
+    uint8_t P8 = P8_f(s_src, s_row, s_col, s_width);
 
     uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
     uint8_t thinning_cond_2 = (TR_P1 == 1);
@@ -271,22 +270,22 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(d_src, d_row, d_col, width, height));
-    global_mem_write(d_dst, d_row, d_col, width, height, write_data);
+    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_row * s_width + s_col]);
+    global_mem_write(d_dst, d_row, d_col, d_width, d_height, write_data);
 }
 
 // Computes the number of white to black transitions around a pixel.
-__device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, int width, int height) {
+__device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, int width) {
     uint8_t count = 0;
 
-    count += ((P2_f(d_data, row, col, width, height) == BINARY_WHITE) & (P3_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P3_f(d_data, row, col, width, height) == BINARY_WHITE) & (P4_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P4_f(d_data, row, col, width, height) == BINARY_WHITE) & (P5_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P5_f(d_data, row, col, width, height) == BINARY_WHITE) & (P6_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P6_f(d_data, row, col, width, height) == BINARY_WHITE) & (P7_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P7_f(d_data, row, col, width, height) == BINARY_WHITE) & (P8_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P8_f(d_data, row, col, width, height) == BINARY_WHITE) & (P9_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P9_f(d_data, row, col, width, height) == BINARY_WHITE) & (P2_f(d_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P2_f(d_data, row, col, width) == BINARY_WHITE) & (P3_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P3_f(d_data, row, col, width) == BINARY_WHITE) & (P4_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P4_f(d_data, row, col, width) == BINARY_WHITE) & (P5_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P5_f(d_data, row, col, width) == BINARY_WHITE) & (P6_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P6_f(d_data, row, col, width) == BINARY_WHITE) & (P7_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P7_f(d_data, row, col, width) == BINARY_WHITE) & (P8_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P8_f(d_data, row, col, width) == BINARY_WHITE) & (P9_f(d_data, row, col, width) == BINARY_BLACK));
+    count += ((P9_f(d_data, row, col, width) == BINARY_WHITE) & (P2_f(d_data, row, col, width) == BINARY_BLACK));
 
     return count;
 }
