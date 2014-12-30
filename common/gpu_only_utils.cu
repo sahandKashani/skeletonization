@@ -15,7 +15,7 @@ void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bit
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(*dst_bitmap);
     int save_successful = saveBitmap(dst_fname, *dst_bitmap);
-    assert(save_successful == 1 && "Error: could not save dst_bitmap");
+    assert((save_successful == 1) && "Error: could not save dst_bitmap");
 
     // free memory used for bitmaps
     free(*src_bitmap);
@@ -25,7 +25,7 @@ void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bit
 }
 
 void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding, dim3* grid_dim, dim3* block_dim) {
-    assert(argc == 5 && "Usage: ./<gpu_binary> <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
+    assert((argc == 5) && "Usage: ./<gpu_binary> <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
 
     char* src_fname = argv[1];
     char* dst_fname = argv[2];
@@ -37,7 +37,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
     // load src image
     *src_bitmap = loadBitmap(src_fname);
-    assert(*src_bitmap != NULL && "Error: could not load src_bitmap");
+    assert((*src_bitmap != NULL) && "Error: could not load src_bitmap");
 
     // validate src image is 8-bit binary-valued grayscale image
     assert(is_binary_valued_grayscale_image(*src_bitmap) && "Error: Only 8-bit binary-valued grayscale images are supported. Values must be black (0) or white (255) only");
@@ -47,7 +47,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
     // Create dst bitmap image (empty for now)
     *dst_bitmap = createBitmap((*src_bitmap)->width, (*src_bitmap)->height, (*src_bitmap)->depth);
-    assert(*dst_bitmap != NULL && "Error: could not allocate memory for dst_bitmap");
+    assert((*dst_bitmap != NULL) && "Error: could not allocate memory for dst_bitmap");
 
     printf("image information\n");
     printf("=================\n");
@@ -59,7 +59,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // check for cuda-capable device
     int cuda_device_count;
     gpuErrchk(cudaGetDeviceCount(&cuda_device_count));
-    assert(cuda_device_count > 0 && "Error: no CUDA-capable device detected");
+    assert((cuda_device_count > 0) && "Error: no CUDA-capable device detected");
 
     // select a cuda-capable device
     int cuda_device_id;
@@ -98,7 +98,8 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // Dimensions of computing elements on the CUDA device.
     int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     int block_dim_y = strtol(block_dim_y_string, NULL, 10);
-    assert((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock && "Error: Using more threads than permitted by maxThreadsPerBlock");
+    assert(((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock) && "Error: Using more threads than permitted by maxThreadsPerBlock");
+    assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
 
     int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
     int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
@@ -128,7 +129,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 // Pads the binary image given as input with the padding values provided as
 // input. The padding value must be a binary white (0) or black (1).
 void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding) {
-    assert(*image && "Error: Bitmap must be non-NULL");
+    assert((*image != NULL) && "Error: Bitmap must be non-NULL");
     assert(is_binary_image(*image) && "Error: Must supply a binary image as input: only black (1) and white (0) are allowed");
     assert((binary_padding_value == BINARY_BLACK || binary_padding_value == BINARY_WHITE) && "Error: Must provide a binary value for padding");
 
@@ -159,7 +160,7 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
 // Unpads the image given as input by removing the amount of padding provided as
 // input.
 void unpad_binary_bitmap(Bitmap** image, Padding padding) {
-    assert(*image && "Error: Bitmap must be non-NULL");
+    assert((*image != NULL) && "Error: Bitmap must be non-NULL");
     assert(is_binary_image(*image) && "Error: Must supply a binary image as input: only black (1) and white (0) are allowed");
 
     // allocate buffer for image data with less rows and less columns
