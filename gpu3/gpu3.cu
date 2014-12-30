@@ -7,6 +7,11 @@
 #include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
+#define PAD_TOP 2
+#define PAD_LEFT 2
+#define PAD_BOTTOM 1
+#define PAD_RIGHT 1
+
 void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim) {
     int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
 
@@ -54,17 +59,17 @@ __global__ void and_reduction(uint8_t* d_data, int width) {
 }
 
 // Computes the number of black neighbors around a pixel.
-__device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int width, int height) {
+__device__ uint8_t black_neighbors_around(uint8_t* s_data, int row, int col, int width, int height) {
     uint8_t count = 0;
 
-    count += (P2_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P3_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P4_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P5_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P6_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P7_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P8_f(d_data, row, col, width, height) == BINARY_BLACK);
-    count += (P9_f(d_data, row, col, width, height) == BINARY_BLACK);
+    count += (P2_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P3_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P4_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P5_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P6_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P7_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P8_f(s_data, row, col, width, height) == BINARY_BLACK);
+    count += (P9_f(s_data, row, col, width, height) == BINARY_BLACK);
 
     return count;
 }
@@ -74,35 +79,35 @@ __device__ uint8_t is_outside_image(int row, int col, int width, int height) {
 }
 
 __device__ uint8_t P2_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
+    return data[(row - 1) * width + col];
 }
 
 __device__ uint8_t P3_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col - 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col - 1)];
+    return data[(row - 1) * width + (col - 1)];
 }
 
 __device__ uint8_t P4_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row, col - 1, width, height) ? BINARY_WHITE : data[row * width + (col - 1)];
+    return data[row * width + (col - 1)];
 }
 
 __device__ uint8_t P5_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col - 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col - 1)];
+    return data[(row + 1) * width + (col - 1)];
 }
 
 __device__ uint8_t P6_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + col];
+    return data[(row + 1) * width + col];
 }
 
 __device__ uint8_t P7_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col + 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col + 1)];
+    return data[(row + 1) * width + (col + 1)];
 }
 
 __device__ uint8_t P8_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row, col + 1, width, height) ? BINARY_WHITE : data[row * width + (col + 1)];
+    return data[row * width + (col + 1)];
 }
 
 __device__ uint8_t P9_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col + 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
+    return data[(row - 1) * width + (col + 1)];
 }
 
 __global__ void pixel_equality(uint8_t* d_in_1, uint8_t* d_in_2, uint8_t* d_out, int width, int height) {
@@ -130,7 +135,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
-        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        int skeletonize_pass_shared_mem_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
+        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -162,18 +168,71 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int height) {
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int d_width, int d_height) {
+    // shared memory for tile
+    extern __shared__ uint8_t s_src[];
 
-    uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
-    uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
-    uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
-    uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height);
-    uint8_t P2 = P2_f(d_src, row, col, width, height);
-    uint8_t P4 = P4_f(d_src, row, col, width, height);
-    uint8_t P6 = P6_f(d_src, row, col, width, height);
-    uint8_t P8 = P8_f(d_src, row, col, width, height);
+    int d_row = blockIdx.y * blockDim.y + threadIdx.y;
+    int d_col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int s_row = threadIdx.y + PAD_TOP;
+    int s_col = threadIdx.x + PAD_LEFT;
+    int s_width = blockDim.x + PAD_LEFT + PAD_RIGHT;
+    int s_height = blockDim.y + PAD_TOP + PAD_BOTTOM;
+
+    // load data into shared memory
+
+    // center pixels
+    s_src[s_row * s_width + s_col] = d_src[d_row * d_width + d_col];
+
+    // corner pixels
+    if ((threadIdx.y == 0) & (threadIdx.x == 0)) {
+        // top-left corner
+        s_src[(s_row - 2) * s_width + (s_col - 2)] = is_outside_image(d_row - 2, d_col - 2, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 2) * d_width + (d_col - 2)];
+        s_src[(s_row - 2) * s_width + (s_col - 1)] = is_outside_image(d_row - 2, d_col - 1, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 2) * d_width + (d_col - 1)];
+        s_src[(s_row - 1) * s_width + (s_col - 2)] = is_outside_image(d_row - 1, d_col - 2, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 1) * d_width + (d_col - 2)];
+        s_src[(s_row - 1) * s_width + (s_col - 1)] = is_outside_image(d_row - 1, d_col - 1, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 1) * d_width + (d_col - 1)];
+    } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == 0)) {
+        // bottom-left corner
+        s_src[(s_row + 1) * s_width + (s_col - 2)] = is_outside_image(d_row + 1, d_col - 2, d_width, d_height) ? BINARY_WHITE : d_src[(d_row + 1) * d_width + (d_col - 2)];
+        s_src[(s_row + 1) * s_width + (s_col - 1)] = is_outside_image(d_row + 1, d_col - 1, d_width, d_height) ? BINARY_WHITE : d_src[(d_row + 1) * d_width + (d_col - 1)];
+    } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == (blockDim.x - 1))) {
+        // bottom-right corner
+        s_src[(s_row + 1) * s_width + (s_col + 1)] = is_outside_image(d_row + 1, d_col + 1, d_width, d_height) ? BINARY_WHITE : d_src[(d_row + 1) * d_width + (d_col + 1)];
+    } else if ((threadIdx.y == 0) & (threadIdx.x == (blockDim.x - 1))) {
+        // top-right corner
+        s_src[(s_row - 2) * s_width + (s_col + 1)] = is_outside_image(d_row - 2, d_col + 1, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 2) * d_width + (d_col + 1)];
+        s_src[(s_row - 1) * s_width + (s_col + 1)] = is_outside_image(d_row - 1, d_col + 1, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 1) * d_width + (d_col + 1)];
+    }
+
+    // side pixels
+    if (threadIdx.y == 0) {
+        // PAD_TOP top rows
+        s_src[(s_row - 1) * s_width + s_col] = is_outside_image(d_row - 1, d_col, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 1) * d_width + d_col];
+        s_src[(s_row - 2) * s_width + s_col] = is_outside_image(d_row - 2, d_col, d_width, d_height) ? BINARY_WHITE : d_src[(d_row - 2) * d_width + d_col];
+    } else if (threadIdx.x == 0) {
+        // PAD_LEFT left rows
+        s_src[s_row * s_width + (s_col - 1)] = is_outside_image(d_row, d_col - 1, d_width, d_height) ? BINARY_WHITE : d_src[d_row * d_width + (d_col - 1)];
+        s_src[s_row * s_width + (s_col - 2)] = is_outside_image(d_row, d_col - 2, d_width, d_height) ? BINARY_WHITE : d_src[d_row * d_width + (d_col - 2)];
+    } else if (threadIdx.y == (blockDim.y - 1)) {
+        // PAD_BOTTOM bottom rows
+        s_src[(s_row + 1) * s_width + s_col] = is_outside_image(d_row + 1, d_col, d_width, d_height) ? BINARY_WHITE : d_src[(d_row + 1) * d_width + d_col];
+    } else if (threadIdx.x == (blockDim.x - 1)) {
+        // PAD_RIGHT right rows
+        s_src[s_row * s_width + (s_col + 1)] = is_outside_image(d_row, d_col + 1, d_width, d_height) ? BINARY_WHITE : d_src[d_row * d_width + (d_col + 1)];
+    }
+
+    __syncthreads();
+
+    // skeletonization algorithm
+    uint8_t NZ = black_neighbors_around(s_src, s_row, s_col, s_width, s_height);
+    uint8_t TR_P1 = wb_transitions_around(s_src, s_row, s_col, s_width, s_height);
+    uint8_t TR_P2 = wb_transitions_around(s_src, s_row - 1, s_col, s_width, s_height);
+    uint8_t TR_P4 = wb_transitions_around(s_src, s_row, s_col - 1, s_width, s_height);
+    uint8_t P2 = P2_f(s_src, s_row, s_col, s_width, s_height);
+    uint8_t P4 = P4_f(s_src, s_row, s_col, s_width, s_height);
+    uint8_t P6 = P6_f(s_src, s_row, s_col, s_width, s_height);
+    uint8_t P8 = P8_f(s_src, s_row, s_col, s_width, s_height);
 
     uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
     uint8_t thinning_cond_2 = (TR_P1 == 1);
@@ -181,21 +240,21 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
+    d_dst[d_row * d_width + d_col] = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_row * s_width + s_col]);
 }
 
 // Computes the number of white to black transitions around a pixel.
-__device__ uint8_t wb_transitions_around(uint8_t* d_data, int row, int col, int width, int height) {
+__device__ uint8_t wb_transitions_around(uint8_t* s_data, int row, int col, int width, int height) {
     uint8_t count = 0;
 
-    count += ((P2_f(d_data, row, col, width, height) == BINARY_WHITE) & (P3_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P3_f(d_data, row, col, width, height) == BINARY_WHITE) & (P4_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P4_f(d_data, row, col, width, height) == BINARY_WHITE) & (P5_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P5_f(d_data, row, col, width, height) == BINARY_WHITE) & (P6_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P6_f(d_data, row, col, width, height) == BINARY_WHITE) & (P7_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P7_f(d_data, row, col, width, height) == BINARY_WHITE) & (P8_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P8_f(d_data, row, col, width, height) == BINARY_WHITE) & (P9_f(d_data, row, col, width, height) == BINARY_BLACK));
-    count += ((P9_f(d_data, row, col, width, height) == BINARY_WHITE) & (P2_f(d_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P2_f(s_data, row, col, width, height) == BINARY_WHITE) & (P3_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P3_f(s_data, row, col, width, height) == BINARY_WHITE) & (P4_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P4_f(s_data, row, col, width, height) == BINARY_WHITE) & (P5_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P5_f(s_data, row, col, width, height) == BINARY_WHITE) & (P6_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P6_f(s_data, row, col, width, height) == BINARY_WHITE) & (P7_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P7_f(s_data, row, col, width, height) == BINARY_WHITE) & (P8_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P8_f(s_data, row, col, width, height) == BINARY_WHITE) & (P9_f(s_data, row, col, width, height) == BINARY_BLACK));
+    count += ((P9_f(s_data, row, col, width, height) == BINARY_WHITE) & (P2_f(s_data, row, col, width, height) == BINARY_BLACK));
 
     return count;
 }
