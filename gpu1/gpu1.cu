@@ -23,40 +23,50 @@ __device__ uint8_t black_neighbors_around(uint8_t* d_data, int row, int col, int
     return count;
 }
 
+__device__ uint8_t global_mem_read(uint8_t* d_data, int row, int col, int width, int height) {
+    return is_outside_image(row, col, width, height) ? BINARY_WHITE : d_data[row * width + col];
+}
+
+__device__ void global_mem_write(uint8_t* d_data, int row, int col, int width, int height, uint8_t write_data) {
+    if (!is_outside_image(row, col, width, height)) {
+        d_data[row * width + col] = write_data;
+    }
+}
+
 __device__ uint8_t is_outside_image(int row, int col, int width, int height) {
     return (row < 0) | (row > (height - 1)) | (col < 0) | (col > (width - 1));
 }
 
 __device__ uint8_t P2_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col, width, height) ? BINARY_WHITE : data[(row - 1) * width + col];
+    return global_mem_read(data, row - 1, col, width, height);
 }
 
 __device__ uint8_t P3_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col - 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col - 1)];
+    return global_mem_read(data, row - 1, col - 1, width, height);
 }
 
 __device__ uint8_t P4_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row, col - 1, width, height) ? BINARY_WHITE : data[row * width + (col - 1)];
+    return global_mem_read(data, row, col - 1, width, height);
 }
 
 __device__ uint8_t P5_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col - 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col - 1)];
+    return global_mem_read(data, row + 1, col - 1, width, height);
 }
 
 __device__ uint8_t P6_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col, width, height) ? BINARY_WHITE : data[(row + 1) * width + col];
+    return global_mem_read(data, row + 1, col, width, height);
 }
 
 __device__ uint8_t P7_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row + 1, col + 1, width, height) ? BINARY_WHITE : data[(row + 1) * width + (col + 1)];
+    return global_mem_read(data, row + 1, col + 1, width, height);
 }
 
 __device__ uint8_t P8_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row, col + 1, width, height) ? BINARY_WHITE : data[row * width + (col + 1)];
+    return global_mem_read(data, row, col + 1, width, height);
 }
 
 __device__ uint8_t P9_f(uint8_t* data, int row, int col, int width, int height) {
-    return is_outside_image(row - 1, col + 1, width, height) ? BINARY_WHITE : data[(row - 1) * width + (col + 1)];
+    return global_mem_read(data, row - 1, col + 1, width, height);
 }
 
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
@@ -116,7 +126,8 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int 
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
+    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(d_src, row, col, width, height));
+    global_mem_write(d_dst, row, col, width, height, write_data);
 }
 
 // Computes the number of white to black transitions around a pixel.
