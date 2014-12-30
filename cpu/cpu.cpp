@@ -133,6 +133,7 @@ int main(int argc, char** argv) {
 
     int iterations = skeletonize(&src_bitmap, &dst_bitmap);
     printf(" %u iterations\n", iterations);
+    printf("\n");
 
     cpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap);
 

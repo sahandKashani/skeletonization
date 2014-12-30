@@ -26,6 +26,7 @@ void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
     printf("src_fname = %s\n", src_fname);
     printf("dst_fname = %s\n", dst_fname);
+    printf("\n");
 
     // load src image
     *src_bitmap = loadBitmap(src_fname);
@@ -47,4 +48,5 @@ void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("    height = %u\n", (*src_bitmap)->height);
     printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
     printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
+    printf("\n");
 }
