@@ -95,8 +95,8 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     int block_dim_x = strtol(block_dim_x_string, NULL, 10);
     int block_dim_y = strtol(block_dim_y_string, NULL, 10);
     assert(((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock) && "Error: Using more threads than permitted by maxThreadsPerBlock");
-    // TODO : enable this
-    // assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
+    assert(((block_dim_x * block_dim_y) > 0) && "Error: Must provide a non-zero number of threads in each dimension of a block");
+    assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
 
     int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
     int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
