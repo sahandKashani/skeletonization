@@ -130,11 +130,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
-        // +3, because each pixel uses the values of:
-        //      2 pixels above it and 1 pixel below it
-        //      2 pixels left of it and 1 pixel right of it
-        int skeletonize_pass_shared_mem_size = (block_dim.x + 3) * (block_dim.y + 3) * sizeof(uint8_t);
-        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -167,9 +163,6 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int height) {
-    // shared memory for tile
-    extern __shared__ uint8_t s_data[];
-
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
 
