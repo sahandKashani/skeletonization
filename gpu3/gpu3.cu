@@ -7,11 +7,6 @@
 #include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
-#define PAD_TOP 2
-#define PAD_LEFT 2
-#define PAD_BOTTOM 1
-#define PAD_RIGHT 1
-
 void and_reduction(uint8_t* d_data, int width, int height, dim3 grid_dim, dim3 block_dim) {
     int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
 
@@ -135,8 +130,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
-        int skeletonize_pass_shared_mem_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
-        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        skeletonize_pass<<<grid_dim, block_dim>>>(d_src_data, d_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -168,30 +162,18 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int d_width, int d_height) {
-    // shared memory for tile
-    extern __shared__ uint8_t s_data[];
+__global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int width, int height) {
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int d_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int d_col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    int s_row = threadIdx.y + PAD_TOP;
-    int s_col = threadIdx.x + PAD_LEFT;
-    int s_width = blockDim.x + PAD_LEFT + PAD_RIGHT;
-
-    // load data into shared memory
-
-    // "center" pixels
-    s_data[s_row * s_width + s_col] = d_src[d_row * d_width + d_col];
-
-    uint8_t NZ = black_neighbors_around(d_src, d_row, d_col, d_width, d_height);
-    uint8_t TR_P1 = wb_transitions_around(d_src, d_row, d_col, d_width, d_height);
-    uint8_t TR_P2 = wb_transitions_around(d_src, d_row - 1, d_col, d_width, d_height);
-    uint8_t TR_P4 = wb_transitions_around(d_src, d_row, d_col - 1, d_width, d_height);
-    uint8_t P2 = P2_f(d_src, d_row, d_col, d_width, d_height);
-    uint8_t P4 = P4_f(d_src, d_row, d_col, d_width, d_height);
-    uint8_t P6 = P6_f(d_src, d_row, d_col, d_width, d_height);
-    uint8_t P8 = P8_f(d_src, d_row, d_col, d_width, d_height);
+    uint8_t NZ = black_neighbors_around(d_src, row, col, width, height);
+    uint8_t TR_P1 = wb_transitions_around(d_src, row, col, width, height);
+    uint8_t TR_P2 = wb_transitions_around(d_src, row - 1, col, width, height);
+    uint8_t TR_P4 = wb_transitions_around(d_src, row, col - 1, width, height);
+    uint8_t P2 = P2_f(d_src, row, col, width, height);
+    uint8_t P4 = P4_f(d_src, row, col, width, height);
+    uint8_t P6 = P6_f(d_src, row, col, width, height);
+    uint8_t P8 = P8_f(d_src, row, col, width, height);
 
     uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
     uint8_t thinning_cond_2 = (TR_P1 == 1);
@@ -199,7 +181,7 @@ __global__ void skeletonize_pass(uint8_t* d_src, uint8_t* d_dst, int d_width, in
     uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
     uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    d_dst[d_row * d_width + d_col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[d_row * d_width + d_col]);
+    d_dst[row * width + col] = BINARY_WHITE + ((1 - thinning_cond_ok) * d_src[row * width + col]);
 }
 
 // Computes the number of white to black transitions around a pixel.
@@ -229,6 +211,7 @@ int main(int argc, char** argv) {
 
     int iterations = skeletonize(&src_bitmap, &dst_bitmap, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
+    printf("\n");
 
     gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, &padding);
 
