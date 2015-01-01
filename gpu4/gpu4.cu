@@ -53,7 +53,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
 
     // write result for this block to global memory
     if (tid == 0) {
-        int write_data = s_data[0];
+        uint8_t write_data = s_data[0];
         global_mem_write(g_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
     }
 }

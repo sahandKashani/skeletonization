@@ -48,7 +48,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
 
     // write result for this block to global memory
     if (tid == 0) {
-        int write_data = s_data[0];
+        uint8_t write_data = s_data[0];
         global_mem_write(g_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
     }
 }
@@ -119,7 +119,7 @@ __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out,
     int g_row = blockIdx.y * blockDim.y + threadIdx.y;
     int g_col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int write_data = (global_mem_read(g_in_1, g_row, g_col, g_width, g_height) == global_mem_read(g_in_2, g_row, g_col, g_width, g_height));
+    uint8_t write_data = (global_mem_read(g_in_1, g_row, g_col, g_width, g_height) == global_mem_read(g_in_2, g_row, g_col, g_width, g_height));
     global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
 }
 
