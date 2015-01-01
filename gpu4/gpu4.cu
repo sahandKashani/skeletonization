@@ -33,14 +33,13 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
-
+    int n = g_width * g_height;
     int tid = threadIdx.y * blockDim.x + threadIdx.x;
+    int i = (blockIdx.y * blockDim.y + threadIdx.y) * g_width + (blockIdx.x * blockDim.x + threadIdx.x);
 
     // Load equality values into shared memory tile. We use 1 as the default
     // value, as it is an AND reduction
-    s_data[tid] = is_outside_image(g_row, g_col, g_width, g_height) ? 1 : global_mem_read(g_data, g_row, g_col, g_width, g_height);;
+    s_data[tid] = (i < n) ? g_data[i] : 1;
     __syncthreads();
 
     // do reduction in shared memory
