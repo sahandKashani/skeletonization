@@ -126,14 +126,6 @@ __device__ uint8_t P9_f(uint8_t* s_data, int s_row, int s_col, int s_width) {
     return s_data[(s_row - 1) * s_width + (s_col + 1)];
 }
 
-__global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_width, int g_height) {
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
-
-    int write_data = (global_mem_read(g_in_1, g_row, g_col, g_width, g_height) == global_mem_read(g_in_2, g_row, g_col, g_width, g_height));
-    global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
-}
-
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
 // the result in the output Bitmap.
 int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 block_dim) {
@@ -156,11 +148,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         int skeletonize_pass_s_dst_size = block_dim.x * block_dim.y * sizeof(uint8_t);
         int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
         int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_dst_size + skeletonize_pass_s_equ_size;
-        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize());
-
-        pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -188,13 +176,13 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, int g_height) {
+__global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ, int g_width, int g_height) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
     uint8_t* s_src = &s_data[0];
     uint8_t* s_dst = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
-    uint8_t* s_equ = &s_data[2 * (blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
+    uint8_t* s_equ = &s_data[((blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)) + (blockDim.x * blockDim.y)];
 
     int g_row = blockIdx.y * blockDim.y + threadIdx.y;
     int g_col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -298,8 +286,13 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
 
     s_dst[(s_dst_row) * s_dst_width + (s_dst_col)] = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
 
-    uint8_t write_data = s_dst[(s_dst_row) * s_dst_width + (s_dst_col)];
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+    global_mem_write(g_dst, g_row, g_col, g_width, g_height, s_dst[(s_dst_row) * s_dst_width + (s_dst_col)]);
+
+    s_equ[(s_equ_row) * s_equ_width + (s_equ_col)] = (s_src[(s_src_row) * s_src_width + (s_src_col)] == s_dst[(s_dst_row) * s_dst_width + (s_dst_col)]);
+
+    __syncthreads();
+
+    global_mem_write(g_equ, g_row, g_col, g_width, g_height, s_equ[(s_equ_row) * s_equ_width + (s_equ_col)]);
 }
 
 // Computes the number of white to black transitions around a pixel.
