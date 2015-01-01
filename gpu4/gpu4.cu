@@ -43,7 +43,13 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
     s_data[tid] = is_outside_image(g_row, g_col, g_width, g_height) ? 1 : global_mem_read(g_data, g_row, g_col, g_width, g_height);;
     __syncthreads();
 
-    block_and_reduction(s_data);
+    // do reduction in shared memory
+    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
+        if (tid < s) {
+            s_data[tid] &= s_data[tid + s];
+        }
+        __syncthreads();
+    }
 
     // write result for this block to global memory
     if (tid == 0) {
@@ -66,18 +72,6 @@ __device__ uint8_t black_neighbors_around(uint8_t* s_data, int s_row, int s_col,
     count += (P9_f(s_data, s_row, s_col, s_width) == BINARY_BLACK);
 
     return count;
-}
-
-__device__ void block_and_reduction(uint8_t* s_data) {
-    int tid = threadIdx.y * blockDim.x + threadIdx.x;
-
-    // do reduction in shared memory
-    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
-        if (tid < s) {
-            s_data[tid] &= s_data[tid + s];
-        }
-        __syncthreads();
-    }
 }
 
 __device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
