@@ -95,6 +95,13 @@ __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_hei
     return (g_row < 0) | (g_row > (g_height - 1)) | (g_col < 0) | (g_col > (g_width - 1));
 }
 
+__device__ uint8_t is_white(uint8_t* s_src, int s_src_row, int s_src_col, int s_src_width, uint8_t* s_equ, int s_equ_row, int s_equ_col, int s_equ_width) {
+    s_equ[s_equ_row * s_equ_width + s_equ_col] = (s_src[s_src_row * s_src_width + s_src_col] == BINARY_WHITE);
+    __syncthreads();
+
+    return block_and_reduce(s_equ);
+}
+
 __device__ void load_s_src(uint8_t* g_src, int g_row, int g_col, int g_width, int g_height, uint8_t* s_src, int s_row, int s_col, int s_width) {
     if ((threadIdx.y == 0) & (threadIdx.x == 0)) {
         // top-left corner
@@ -260,14 +267,11 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_equ_col = threadIdx.x;
     int s_equ_width = blockDim.x;
 
+    uint8_t g_dst_next;
+
     // load g_src into shared memory
     load_s_src(g_src, g_row, g_col, g_width, g_height, s_src, s_src_row, s_src_col, s_src_width);
-
-    s_equ[s_equ_row * s_equ_width + s_equ_col] = (s_src[s_src_row * s_src_width + s_src_col] == BINARY_WHITE);
-    __syncthreads();
-    uint8_t is_src_white = block_and_reduce(s_equ);
-
-    uint8_t g_dst_next;
+    uint8_t is_src_white = is_white(s_src, s_src_row, s_src_col, s_src_width, s_equ, s_equ_row, s_equ_col, s_equ_width);
 
     if (!is_src_white) {
         uint8_t NZ = black_neighbors_around(s_src, s_src_row, s_src_col, s_src_width);
