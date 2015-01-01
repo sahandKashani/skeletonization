@@ -44,16 +44,10 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
     __syncthreads();
 
     // do reduction in shared memory
-    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
-        if (tid < s) {
-            s_data[tid] &= s_data[tid + s];
-        }
-        __syncthreads();
-    }
+    uint8_t write_data = block_and_reduce(s_data);
 
     // write result for this block to global memory
     if (tid == 0) {
-        uint8_t write_data = s_data[0];
         global_mem_write(g_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
     }
 }
@@ -72,6 +66,19 @@ __device__ uint8_t black_neighbors_around(uint8_t* s_data, int s_row, int s_col,
     count += (P9_f(s_data, s_row, s_col, s_width) == BINARY_BLACK);
 
     return count;
+}
+
+__device__ uint8_t block_and_reduce(uint8_t* s_data) {
+    int tid = threadIdx.y * blockDim.x + threadIdx.x;
+
+    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
+        if (tid < s) {
+            s_data[tid] &= s_data[tid + s];
+        }
+        __syncthreads();
+    }
+
+    return s_data[0];
 }
 
 __device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
