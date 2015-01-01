@@ -211,8 +211,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     do {
         int skeletonize_pass_s_src_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
         int skeletonize_pass_s_dst_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-        int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-        int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_dst_size + skeletonize_pass_s_equ_size;
+        int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_dst_size;
         skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
@@ -247,7 +246,6 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
 
     uint8_t* s_src = &s_data[0];
     uint8_t* s_dst = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
-    uint8_t* s_equ = &s_data[((blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)) + (blockDim.x * blockDim.y)];
 
     int g_row = blockIdx.y * blockDim.y + threadIdx.y;
     int g_col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -259,10 +257,6 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_dst_row = threadIdx.y;
     int s_dst_col = threadIdx.x;
     int s_dst_width = blockDim.x;
-
-    int s_equ_row = threadIdx.y;
-    int s_equ_col = threadIdx.x;
-    int s_equ_width = blockDim.x;
 
     // load g_src & g_dst into shared memory
     load_s_src(g_src, g_row, g_col, g_width, g_height, s_src, s_src_row, s_src_col, s_src_width);
@@ -285,13 +279,15 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
 
     s_dst[(s_dst_row) * s_dst_width + (s_dst_col)] = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
 
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, s_dst[(s_dst_row) * s_dst_width + (s_dst_col)]);
+    uint8_t write_data;
 
-    s_equ[(s_equ_row) * s_equ_width + (s_equ_col)] = (s_src[(s_src_row) * s_src_width + (s_src_col)] == s_dst[(s_dst_row) * s_dst_width + (s_dst_col)]);
+    // write dst pixel value to g_dst
+    write_data = s_dst[(s_dst_row) * s_dst_width + (s_dst_col)];
+    global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
 
-    __syncthreads();
-
-    global_mem_write(g_equ, g_row, g_col, g_width, g_height, s_equ[(s_equ_row) * s_equ_width + (s_equ_col)]);
+    // write pixel equality information to g_equ
+    write_data = (s_src[(s_src_row) * s_src_width + (s_src_col)] == s_dst[(s_dst_row) * s_dst_width + (s_dst_col)]);
+    global_mem_write(g_equ, g_row, g_col, g_width, g_height, write_data);
 }
 
 // Computes the number of white to black transitions around a pixel.
