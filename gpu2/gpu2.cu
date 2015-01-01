@@ -35,7 +35,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
 
     // Load equality values into shared memory tile. We use 1 as the default
     // value, as it is an AND reduction
-    s_data[tid] = is_outside_image(g_row, g_col, g_width, g_height) ? 1 : global_mem_read(g_data, g_row, g_col, g_width, g_height);;
+    s_data[tid] = is_outside_image(g_row, g_col, g_width, g_height) ? 1 : global_mem_read(g_data, g_row, g_col, g_width, g_height);
     __syncthreads();
 
     // do reduction in shared memory
