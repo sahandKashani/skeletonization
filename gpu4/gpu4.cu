@@ -190,7 +190,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
     extern __shared__ uint8_t s_data[];
 
     uint8_t* s_src = &s_data[0];
-    uint8_t* s_dst = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
+    uint8_t* s_is_src_dst_white = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
 
     int g_row = blockIdx.y * blockDim.y + threadIdx.y;
     int g_col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -199,9 +199,9 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
     int s_src_col = threadIdx.x + PAD_LEFT;
     int s_src_width = blockDim.x + PAD_LEFT + PAD_RIGHT;
 
-    int s_dst_row = threadIdx.y;
-    int s_dst_col = threadIdx.x;
-    int s_dst_width = blockDim.x;
+    int s_is_src_dst_white_row = threadIdx.y;
+    int s_is_src_dst_white_col = threadIdx.x;
+    int s_is_src_dst_white_width = blockDim.x;
 
     // load g_src into shared memory
     if ((threadIdx.y == 0) & (threadIdx.x == 0)) {
@@ -266,30 +266,35 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
         s_src[(s_src_row) * s_src_width + (s_src_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
     }
 
-    // load g_dst into shared memory
-    s_dst[(s_dst_row) * s_dst_width + (s_dst_col)] = global_mem_read(g_dst, g_row, g_col, g_width, g_height);
+    __syncthreads();
 
-    // block_and_reduction();
+    // calculate block pixel equality into s_is_src_dst_white
+    s_is_src_dst_white[(s_is_src_dst_white_row) * s_is_src_dst_white_width + (s_is_src_dst_white_col)] = ((s_src[s_src_row * s_src_width + s_src_col] == BINARY_WHITE) & (global_mem_read(g_dst, g_row, g_col, g_width, g_height) == BINARY_WHITE));
 
     __syncthreads();
 
-    uint8_t NZ = black_neighbors_around(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t TR_P1 = wb_transitions_around(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t TR_P2 = wb_transitions_around(s_src, s_src_row - 1, s_src_col, s_src_width);
-    uint8_t TR_P4 = wb_transitions_around(s_src, s_src_row, s_src_col - 1, s_src_width);
-    uint8_t P2 = P2_f(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t P4 = P4_f(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t P6 = P6_f(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t P8 = P8_f(s_src, s_src_row, s_src_col, s_src_width);
+    block_and_reduction(s_is_src_dst_white);
 
-    uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
-    uint8_t thinning_cond_2 = (TR_P1 == 1);
-    uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
-    uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
-    uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+    uint8_t is_src_dst_white = s_is_src_dst_white[0];
+    if (!is_src_dst_white) {
+        uint8_t NZ = black_neighbors_around(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t TR_P1 = wb_transitions_around(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t TR_P2 = wb_transitions_around(s_src, s_src_row - 1, s_src_col, s_src_width);
+        uint8_t TR_P4 = wb_transitions_around(s_src, s_src_row, s_src_col - 1, s_src_width);
+        uint8_t P2 = P2_f(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t P4 = P4_f(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t P6 = P6_f(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t P8 = P8_f(s_src, s_src_row, s_src_col, s_src_width);
 
-    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+        uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
+        uint8_t thinning_cond_2 = (TR_P1 == 1);
+        uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
+        uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
+        uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+
+        uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
+        global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+    }
 }
 
 // Computes the number of white to black transitions around a pixel.
