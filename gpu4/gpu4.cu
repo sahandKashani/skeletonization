@@ -44,16 +44,10 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
     __syncthreads();
 
     // do reduction in shared memory
-    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
-        if (tid < s) {
-            s_data[tid] &= s_data[tid + s];
-        }
-        __syncthreads();
-    }
+    uint8_t write_data = block_and_reduce(s_data);
 
     // write result for this block to global memory
     if (tid == 0) {
-        uint8_t write_data = s_data[0];
         global_mem_write(g_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
     }
 }
@@ -72,6 +66,19 @@ __device__ uint8_t black_neighbors_around(uint8_t* s_data, int s_row, int s_col,
     count += (P9_f(s_data, s_row, s_col, s_width) == BINARY_BLACK);
 
     return count;
+}
+
+__device__ uint8_t block_and_reduce(uint8_t* s_data) {
+    int tid = threadIdx.y * blockDim.x + threadIdx.x;
+
+    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
+        if (tid < s) {
+            s_data[tid] &= s_data[tid + s];
+        }
+        __syncthreads();
+    }
+
+    return s_data[0];
 }
 
 __device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
@@ -211,7 +218,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     do {
         int skeletonize_pass_s_src_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
         int skeletonize_pass_s_dst_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-        int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_dst_size;
+        int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
+        int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_dst_size + skeletonize_pass_s_equ_size;
         skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
@@ -246,6 +254,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
 
     uint8_t* s_src = &s_data[0];
     uint8_t* s_dst = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
+    uint8_t* s_equ = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM) + (blockDim.x * blockDim.y)];
 
     int g_row = blockIdx.y * blockDim.y + threadIdx.y;
     int g_col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -257,6 +266,10 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_dst_row = threadIdx.y;
     int s_dst_col = threadIdx.x;
     int s_dst_width = blockDim.x;
+
+    int s_equ_row = threadIdx.y;
+    int s_equ_col = threadIdx.x;
+    int s_equ_width = blockDim.x;
 
     // load g_src & g_dst into shared memory
     load_s_src(g_src, g_row, g_col, g_width, g_height, s_src, s_src_row, s_src_col, s_src_width);
