@@ -95,11 +95,6 @@ __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_hei
     return (g_row < 0) | (g_row > (g_height - 1)) | (g_col < 0) | (g_col > (g_width - 1));
 }
 
-__device__ void load_s_dst(uint8_t* g_dst, int g_row, int g_col, int g_width, int g_height, uint8_t* s_dst, int s_row, int s_col, int s_width) {
-    s_dst[(s_row) * s_width + (s_col)] = global_mem_read(g_dst, g_row, g_col, g_width, g_height);
-    __syncthreads();
-}
-
 __device__ void load_s_src(uint8_t* g_src, int g_row, int g_col, int g_width, int g_height, uint8_t* s_src, int s_row, int s_col, int s_width) {
     if ((threadIdx.y == 0) & (threadIdx.x == 0)) {
         // top-left corner
@@ -217,9 +212,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     int iterations = 0;
     do {
         int skeletonize_pass_s_src_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
-        int skeletonize_pass_s_dst_size = block_dim.x * block_dim.y * sizeof(uint8_t);
         int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
-        int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_dst_size + skeletonize_pass_s_equ_size;
+        int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_equ_size;
         skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
@@ -253,8 +247,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     extern __shared__ uint8_t s_data[];
 
     uint8_t* s_src = &s_data[0];
-    uint8_t* s_dst = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
-    uint8_t* s_equ = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM) + (blockDim.x * blockDim.y)];
+    uint8_t* s_equ = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
 
     int g_row = blockIdx.y * blockDim.y + threadIdx.y;
     int g_col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -263,43 +256,45 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_src_col = threadIdx.x + PAD_LEFT;
     int s_src_width = blockDim.x + PAD_LEFT + PAD_RIGHT;
 
-    int s_dst_row = threadIdx.y;
-    int s_dst_col = threadIdx.x;
-    int s_dst_width = blockDim.x;
-
     int s_equ_row = threadIdx.y;
     int s_equ_col = threadIdx.x;
     int s_equ_width = blockDim.x;
 
-    // load g_src & g_dst into shared memory
+    // load g_src into shared memory
     load_s_src(g_src, g_row, g_col, g_width, g_height, s_src, s_src_row, s_src_col, s_src_width);
-    load_s_dst(g_dst, g_row, g_col, g_width, g_height, s_dst, s_dst_row, s_dst_col, s_dst_width);
 
-    uint8_t NZ = black_neighbors_around(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t TR_P1 = wb_transitions_around(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t TR_P2 = wb_transitions_around(s_src, s_src_row - 1, s_src_col, s_src_width);
-    uint8_t TR_P4 = wb_transitions_around(s_src, s_src_row, s_src_col - 1, s_src_width);
-    uint8_t P2 = P2_f(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t P4 = P4_f(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t P6 = P6_f(s_src, s_src_row, s_src_col, s_src_width);
-    uint8_t P8 = P8_f(s_src, s_src_row, s_src_col, s_src_width);
+    s_equ[s_equ_row * s_equ_width + s_equ_col] = (s_src[s_src_row * s_src_width + s_src_col] == BINARY_WHITE);
+    __syncthreads();
+    uint8_t is_src_white = block_and_reduce(s_equ);
 
-    uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
-    uint8_t thinning_cond_2 = (TR_P1 == 1);
-    uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
-    uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
-    uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+    uint8_t g_dst_next;
 
-    s_dst[(s_dst_row) * s_dst_width + (s_dst_col)] = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
+    if (!is_src_white) {
+        uint8_t NZ = black_neighbors_around(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t TR_P1 = wb_transitions_around(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t TR_P2 = wb_transitions_around(s_src, s_src_row - 1, s_src_col, s_src_width);
+        uint8_t TR_P4 = wb_transitions_around(s_src, s_src_row, s_src_col - 1, s_src_width);
+        uint8_t P2 = P2_f(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t P4 = P4_f(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t P6 = P6_f(s_src, s_src_row, s_src_col, s_src_width);
+        uint8_t P8 = P8_f(s_src, s_src_row, s_src_col, s_src_width);
 
-    uint8_t write_data;
+        uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
+        uint8_t thinning_cond_2 = (TR_P1 == 1);
+        uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
+        uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
+        uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-    // write dst pixel value to g_dst
-    write_data = s_dst[(s_dst_row) * s_dst_width + (s_dst_col)];
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+        g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
+    } else {
+        g_dst_next = s_src[s_src_row * s_src_width + s_src_col];
+    }
+
+    // write g_dst_next to g_dst
+    global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
 
     // write pixel equality information to g_equ
-    write_data = (s_src[(s_src_row) * s_src_width + (s_src_col)] == s_dst[(s_dst_row) * s_dst_width + (s_dst_col)]);
+    uint8_t write_data = (s_src[(s_src_row) * s_src_width + (s_src_col)] == g_dst_next);
     global_mem_write(g_equ, g_row, g_col, g_width, g_height, write_data);
 }
 
