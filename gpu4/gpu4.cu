@@ -43,7 +43,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
     s_data[tid] = is_outside_image(g_row, g_col, g_width, g_height) ? 1 : global_mem_read(g_data, g_row, g_col, g_width, g_height);;
     __syncthreads();
 
-    block_and_reduction(s_data, tid);
+    block_and_reduction(s_data);
 
     // write result for this block to global memory
     if (tid == 0) {
@@ -68,7 +68,9 @@ __device__ uint8_t black_neighbors_around(uint8_t* s_data, int s_row, int s_col,
     return count;
 }
 
-__device__ void block_and_reduction(uint8_t* s_data, int tid) {
+__device__ void block_and_reduction(uint8_t* s_data) {
+    int tid = threadIdx.y * blockDim.x + threadIdx.x;
+
     // do reduction in shared memory
     for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
         if (tid < s) {
@@ -266,6 +268,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
 
     // load g_dst into shared memory
     s_dst[(s_dst_row) * s_dst_width + (s_dst_col)] = global_mem_read(g_dst, g_row, g_col, g_width, g_height);
+
+    // block_and_reduction();
 
     __syncthreads();
 
