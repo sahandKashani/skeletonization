@@ -4,6 +4,7 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd "$DIR"
 
 nvcc \
+--generate-line-info \
 --ptxas-options=-v \
 -gencode=arch=compute_10,code=sm_10 \
 -gencode=arch=compute_20,code=sm_20 \
