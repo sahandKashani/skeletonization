@@ -110,8 +110,8 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("=================\n");
     printf("    width = %u\n", (*src_bitmap)->width);
     printf("    height = %u\n", (*src_bitmap)->height);
-    printf("    white pixels = %d%%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
-    printf("    black pixels = %d%%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
+    printf("    white pixels = %d %%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
+    printf("    black pixels = %d %%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
     printf("\n");
 
     printf("cuda runtime information\n");
