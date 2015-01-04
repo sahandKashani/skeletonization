@@ -218,6 +218,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
+        gpuErrchk(cudaMemcpy(g_dst_data, g_src_data, g_data_size, cudaMemcpyDeviceToDevice));
+
         int skeletonize_pass_s_src_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
         int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
         int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_equ_size;
@@ -290,10 +292,10 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
         g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
-    }
 
-    // write g_dst_next to g_dst
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
+        // write g_dst_next to g_dst
+        global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
+    }
 
     // write pixel equality information to g_equ
     uint8_t write_data = (s_src[(s_src_row) * s_src_width + (s_src_col)] == g_dst_next);
