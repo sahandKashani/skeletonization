@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "cpu.hpp"
 #include "../common/cpu_only_utils.hpp"
 #include "../common/lspbmp.hpp"
@@ -65,6 +66,8 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap) {
     int iterations = 0;
 
     do {
+        memcpy((*dst_bitmap)->data, (*src_bitmap)->data, (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t));
+
         skeletonize_pass((*src_bitmap)->data, (*dst_bitmap)->data, (*src_bitmap)->width, (*src_bitmap)->height);
         swap_bitmaps((void**) src_bitmap, (void**) dst_bitmap);
 
@@ -80,8 +83,6 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap) {
 void skeletonize_pass(uint8_t* src, uint8_t* dst, int width, int height) {
     for (int row = 0; row < height; row++) {
         for (int col = 0; col < width; col++) {
-            uint8_t dst_next = BINARY_WHITE;
-
             // Optimization for CPU algorithm: You don't need to do any of these
             // computations if the pixel is already BINARY_WHITE
             if (src[row * width + col] == BINARY_BLACK) {
@@ -99,14 +100,10 @@ void skeletonize_pass(uint8_t* src, uint8_t* dst, int width, int height) {
                 uint8_t thinning_cond_3 = (((P2 && P4 && P8) == 0) || (TR_P2 != 1));
                 uint8_t thinning_cond_4 = (((P2 && P4 && P6) == 0) || (TR_P4 != 1));
 
-                if (!(thinning_cond_1 && thinning_cond_2 && thinning_cond_3 && thinning_cond_4)) {
-                    // dst_next = src[row * width + col], which is BINARY_BLACK
-                    // due to the if statement above;
-                    dst_next = BINARY_BLACK;
+                if (thinning_cond_1 && thinning_cond_2 && thinning_cond_3 && thinning_cond_4) {
+                    dst[row * width + col] = BINARY_WHITE;
                 }
             }
-
-            dst[row * width + col] = dst_next;
         }
     }
 }
