@@ -206,11 +206,24 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     // allocate memory on device
     uint8_t* g_src_data = NULL;
     uint8_t* g_dst_data = NULL;
-    uint8_t* g_equ_data = NULL;
     int g_data_size = (*src_bitmap)->width * (*src_bitmap)->height * sizeof(uint8_t);
     gpuErrchk(cudaMalloc((void**) &g_src_data, g_data_size));
     gpuErrchk(cudaMalloc((void**) &g_dst_data, g_data_size));
-    gpuErrchk(cudaMalloc((void**) &g_equ_data, g_data_size));
+
+    uint8_t* g_equ_data = NULL;
+    int g_equ_width = grid_dim.x;
+    int g_equ_height = grid_dim.y;
+    int g_equ_size = g_equ_width * g_equ_height * sizeof(uint8_t);
+    gpuErrchk(cudaMalloc((void**) &g_equ_data, g_equ_size));
+    dim3 g_equ_grid_dim;
+    g_equ_grid_dim.x = ceil(g_equ_width / ((double) block_dim.x));;
+    g_equ_grid_dim.y = ceil(g_equ_height / ((double) block_dim.y));;
+    g_equ_grid_dim.z = 1;
+
+    printf("g_equ_width = %d\n", g_equ_width);
+    printf("g_equ_height = %d\n", g_equ_height);
+    printf("g_equ_grid_dim.x = %d\n", g_equ_grid_dim.x);
+    printf("g_equ_grid_dim.y = %d\n", g_equ_grid_dim.y);
 
     // send data to device
     gpuErrchk(cudaMemcpy(g_src_data, (*src_bitmap)->data, g_data_size, cudaMemcpyHostToDevice));
@@ -224,16 +237,16 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
         // set g_equ_data to 1 (GPU <-> GPU transfer, so it has very high
         // throughput)
-        gpuErrchk(cudaMemset(g_equ_data, 1, g_data_size));
+        gpuErrchk(cudaMemset(g_equ_data, 1, g_equ_size));
 
         int skeletonize_pass_s_src_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
         int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
         int skeletonize_pass_shared_mem_size = skeletonize_pass_s_src_size + skeletonize_pass_s_equ_size;
-        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height, g_equ_width, g_equ_height, g_equ_grid_dim);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        and_reduction(g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height, grid_dim, block_dim);
+        and_reduction(g_equ_data, g_equ_width, g_equ_height, g_equ_grid_dim, block_dim);
 
         // bring reduced bitmap equality information back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
@@ -257,7 +270,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 }
 
 // Performs 1 iteration of the thinning algorithm.
-__global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ, int g_width, int g_height) {
+__global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ, int g_width, int g_height, int g_equ_width, int g_equ_height, dim3 g_equ_grid_dim) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
@@ -296,12 +309,22 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
         uint8_t g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
-        uint8_t g_equ_next = (s_src[(s_src_row) * s_src_width + (s_src_col)] == g_dst_next);
 
         // write g_dst_next to g_dst
-        // write g_equ_next information to g_equ
         global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
-        global_mem_write(g_equ, g_row, g_col, g_width, g_height, g_equ_next);
+
+
+
+        s_equ[s_equ_row * s_equ_width + s_equ_col] = (s_src[s_src_row * s_src_width + s_src_col] == g_dst_next);
+        __syncthreads();
+        uint8_t g_equ_next = block_and_reduce(s_equ);
+
+        if (s_equ_row * s_equ_width + s_equ_col == 0) {
+            // write g_equ_next information to g_equ
+            // global_mem_write(g_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
+            // printf("g_equ_row = %d, g_equ_col = %d\n", blockIdx.y / blockDim.y, blockIdx.x / blockDim.x);
+            global_mem_write(g_equ, blockIdx.y, blockIdx.x, g_equ_width, g_equ_height, g_equ_next);
+        }
     }
 }
 

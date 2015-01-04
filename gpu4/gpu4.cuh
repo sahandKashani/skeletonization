@@ -22,7 +22,7 @@ __device__ uint8_t P7_f(uint8_t* s_data, int s_row, int s_col, int s_width);
 __device__ uint8_t P8_f(uint8_t* s_data, int s_row, int s_col, int s_width);
 __device__ uint8_t P9_f(uint8_t* s_data, int s_row, int s_col, int s_width);
 int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 block_dim);
-__global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ, int g_width, int g_height);
+__global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ, int g_width, int g_height, int g_equ_width, int g_equ_height, dim3 g_equ_grid_dim);
 __device__ uint8_t wb_transitions_around(uint8_t* s_data, int s_row, int s_col, int s_width);
 
 #endif
