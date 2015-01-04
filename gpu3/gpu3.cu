@@ -100,62 +100,62 @@ __device__ void load_s_src(uint8_t* g_src, int g_row, int g_col, int g_width, in
         // top-left corner
         s_src[(s_row - 2) * s_width + (s_col - 2)] = global_mem_read(g_src, g_row - 2, g_col - 2, g_width, g_height);
         s_src[(s_row - 2) * s_width + (s_col - 1)] = global_mem_read(g_src, g_row - 2, g_col - 1, g_width, g_height);
-        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(g_src, g_row - 2, g_col, g_width, g_height);
+        s_src[(s_row - 2) * s_width + s_col] = global_mem_read(g_src, g_row - 2, g_col, g_width, g_height);
 
         s_src[(s_row - 1) * s_width + (s_col - 2)] = global_mem_read(g_src, g_row - 1, g_col - 2, g_width, g_height);
         s_src[(s_row - 1) * s_width + (s_col - 1)] = global_mem_read(g_src, g_row - 1, g_col - 1, g_width, g_height);
-        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(g_src, g_row - 1, g_col, g_width, g_height);
+        s_src[(s_row - 1) * s_width + s_col] = global_mem_read(g_src, g_row - 1, g_col, g_width, g_height);
 
-        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(g_src, g_row, g_col - 2, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(g_src, g_row, g_col - 1, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + (s_col - 2)] = global_mem_read(g_src, g_row, g_col - 2, g_width, g_height);
+        s_src[s_row * s_width + (s_col - 1)] = global_mem_read(g_src, g_row, g_col - 1, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
     } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == 0)) {
         // bottom-left corner
-        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(g_src, g_row, g_col - 2, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(g_src, g_row, g_col - 1, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + (s_col - 2)] = global_mem_read(g_src, g_row, g_col - 2, g_width, g_height);
+        s_src[s_row * s_width + (s_col - 1)] = global_mem_read(g_src, g_row, g_col - 1, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
 
         s_src[(s_row + 1) * s_width + (s_col - 2)] = global_mem_read(g_src, g_row + 1, g_col - 2, g_width, g_height);
         s_src[(s_row + 1) * s_width + (s_col - 1)] = global_mem_read(g_src, g_row + 1, g_col - 1, g_width, g_height);
-        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(g_src, g_row + 1, g_col, g_width, g_height);
+        s_src[(s_row + 1) * s_width + s_col] = global_mem_read(g_src, g_row + 1, g_col, g_width, g_height);
     } else if ((threadIdx.y == (blockDim.y - 1)) & (threadIdx.x == (blockDim.x - 1))) {
         // bottom-right corner
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(g_src, g_row, g_col + 1, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + (s_col + 1)] = global_mem_read(g_src, g_row, g_col + 1, g_width, g_height);
 
-        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(g_src, g_row + 1, g_col, g_width, g_height);
+        s_src[(s_row + 1) * s_width + s_col] = global_mem_read(g_src, g_row + 1, g_col, g_width, g_height);
         s_src[(s_row + 1) * s_width + (s_col + 1)] = global_mem_read(g_src, g_row + 1, g_col + 1, g_width, g_height);
     } else if ((threadIdx.y == 0) & (threadIdx.x == (blockDim.x - 1))) {
         // top-right corner
-        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(g_src, g_row - 2, g_col, g_width, g_height);
+        s_src[(s_row - 2) * s_width + s_col] = global_mem_read(g_src, g_row - 2, g_col, g_width, g_height);
         s_src[(s_row - 2) * s_width + (s_col + 1)] = global_mem_read(g_src, g_row - 2, g_col + 1, g_width, g_height);
 
-        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(g_src, g_row - 1, g_col, g_width, g_height);
+        s_src[(s_row - 1) * s_width + s_col] = global_mem_read(g_src, g_row - 1, g_col, g_width, g_height);
         s_src[(s_row - 1) * s_width + (s_col + 1)] = global_mem_read(g_src, g_row - 1, g_col + 1, g_width, g_height);
 
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(g_src, g_row, g_col + 1, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + (s_col + 1)] = global_mem_read(g_src, g_row, g_col + 1, g_width, g_height);
     } else if (threadIdx.y == 0) {
         // PAD_TOP top rows
-        s_src[(s_row - 2) * s_width + (s_col)] = global_mem_read(g_src, g_row - 2, g_col, g_width, g_height);
-        s_src[(s_row - 1) * s_width + (s_col)] = global_mem_read(g_src, g_row - 1, g_col, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[(s_row - 2) * s_width + s_col] = global_mem_read(g_src, g_row - 2, g_col, g_width, g_height);
+        s_src[(s_row - 1) * s_width + s_col] = global_mem_read(g_src, g_row - 1, g_col, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
     } else if (threadIdx.x == 0) {
         // PAD_LEFT left rows
-        s_src[(s_row) * s_width + (s_col - 2)] = global_mem_read(g_src, g_row, g_col - 2, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col - 1)] = global_mem_read(g_src, g_row, g_col - 1, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + (s_col - 2)] = global_mem_read(g_src, g_row, g_col - 2, g_width, g_height);
+        s_src[s_row * s_width + (s_col - 1)] = global_mem_read(g_src, g_row, g_col - 1, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
     } else if (threadIdx.y == (blockDim.y - 1)) {
         // PAD_BOTTOM bottom rows
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
-        s_src[(s_row + 1) * s_width + (s_col)] = global_mem_read(g_src, g_row + 1, g_col, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[(s_row + 1) * s_width + s_col] = global_mem_read(g_src, g_row + 1, g_col, g_width, g_height);
     } else if (threadIdx.x == (blockDim.x - 1)) {
         // PAD_RIGHT right rows
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
-        s_src[(s_row) * s_width + (s_col + 1)] = global_mem_read(g_src, g_row, g_col + 1, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + (s_col + 1)] = global_mem_read(g_src, g_row, g_col + 1, g_width, g_height);
     } else {
         // center pixels
-        s_src[(s_row) * s_width + (s_col)] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
+        s_src[s_row * s_width + s_col] = global_mem_read(g_src, g_row, g_col, g_width, g_height);
     }
 
     __syncthreads();
