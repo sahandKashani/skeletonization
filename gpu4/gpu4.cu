@@ -273,8 +273,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     uint8_t* s_src = &s_data[0];
     uint8_t* s_equ = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (blockDim.y + PAD_TOP + PAD_BOTTOM)];
 
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
+    int g_src_row = blockIdx.y * blockDim.y + threadIdx.y;
+    int g_src_col = blockIdx.x * blockDim.x + threadIdx.x;
 
     int s_src_row = threadIdx.y + PAD_TOP;
     int s_src_col = threadIdx.x + PAD_LEFT;
@@ -285,7 +285,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_equ_width = blockDim.x;
 
     // load g_src into shared memory
-    load_s_src(g_src, g_row, g_col, g_src_width, g_src_height, s_src, s_src_row, s_src_col, s_src_width);
+    load_s_src(g_src, g_src_row, g_src_col, g_src_width, g_src_height, s_src, s_src_row, s_src_col, s_src_width);
     uint8_t is_src_white = is_white(s_src, s_src_row, s_src_col, s_src_width, s_equ, s_equ_row, s_equ_col, s_equ_width);
 
     if (!is_src_white) {
@@ -306,7 +306,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
 
         // compute and write g_dst_next to g_dst
         uint8_t g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
-        global_mem_write(g_dst, g_row, g_col, g_src_width, g_src_height, g_dst_next);
+        global_mem_write(g_dst, g_src_row, g_src_col, g_src_width, g_src_height, g_dst_next);
 
         // compute and write reduced value of s_equ to g_equ:
         //
