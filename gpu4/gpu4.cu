@@ -219,6 +219,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     int iterations = 0;
     do {
         gpuErrchk(cudaMemcpy(g_dst_data, g_src_data, g_data_size, cudaMemcpyDeviceToDevice));
+        gpuErrchk(cudaMemset(g_equ_data, 1, g_data_size));
 
         int skeletonize_pass_s_src_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (block_dim.y + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
         int skeletonize_pass_s_equ_size = block_dim.x * block_dim.y * sizeof(uint8_t);
@@ -269,8 +270,6 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_equ_col = threadIdx.x;
     int s_equ_width = blockDim.x;
 
-    uint8_t g_dst_next = BINARY_WHITE;
-
     // load g_src into shared memory
     load_s_src(g_src, g_row, g_col, g_width, g_height, s_src, s_src_row, s_src_col, s_src_width);
     uint8_t is_src_white = is_white(s_src, s_src_row, s_src_col, s_src_width, s_equ, s_equ_row, s_equ_col, s_equ_width);
@@ -291,15 +290,14 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
         uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-        g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
+        uint8_t g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
+        uint8_t g_equ_next = (s_src[(s_src_row) * s_src_width + (s_src_col)] == g_dst_next);
 
         // write g_dst_next to g_dst
+        // write g_equ_next information to g_equ
         global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
+        global_mem_write(g_equ, g_row, g_col, g_width, g_height, g_equ_next);
     }
-
-    // write pixel equality information to g_equ
-    uint8_t write_data = (s_src[(s_src_row) * s_src_width + (s_src_col)] == g_dst_next);
-    global_mem_write(g_equ, g_row, g_col, g_width, g_height, write_data);
 }
 
 // Computes the number of white to black transitions around a pixel.
