@@ -267,7 +267,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     int s_equ_col = threadIdx.x;
     int s_equ_width = blockDim.x;
 
-    uint8_t g_dst_next;
+    uint8_t g_dst_next = BINARY_WHITE;
 
     // load g_src into shared memory
     load_s_src(g_src, g_row, g_col, g_width, g_height, s_src, s_src_row, s_src_col, s_src_width);
@@ -290,8 +290,6 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
         g_dst_next = BINARY_WHITE + ((1 - thinning_cond_ok) * s_src[s_src_row * s_src_width + s_src_col]);
-    } else {
-        g_dst_next = s_src[s_src_row * s_src_width + s_src_col];
     }
 
     // write g_dst_next to g_dst
