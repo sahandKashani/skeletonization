@@ -133,7 +133,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
         uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
         global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
 
-        tid += gridDim.x * blockDim.x;
+        tid += (gridDim.x * blockDim.x);
     }
 }
 
