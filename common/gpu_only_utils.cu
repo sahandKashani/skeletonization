@@ -22,7 +22,7 @@ void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bit
 }
 
 void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3* grid_dim, dim3* block_dim) {
-    assert((argc == 5) && "Usage: ./<gpu_binary> <input_file_name.bmp> <output_file_name.bmp> <block_dim_x> <block_dim_y>");
+    assert((argc == 5) && "Usage: ./<gpu_binary> <input_file_name.bmp> <output_file_name.bmp> <block_size> <grid_size>");
 
     // check for cuda-capable device
     int cuda_device_count;
@@ -66,8 +66,8 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
     char* src_fname = argv[1];
     char* dst_fname = argv[2];
-    char* block_dim_x_string = argv[3];
-    char* block_dim_y_string = argv[4];
+    char* block_size_string = argv[3];
+    char* grid_size_string = argv[4];
 
     printf("src_fname = %s\n", src_fname);
     printf("dst_fname = %s\n", dst_fname);
@@ -88,22 +88,18 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     assert((*dst_bitmap != NULL) && "Error: could not allocate memory for dst_bitmap");
 
     // Dimensions of computing elements on the CUDA device.
-    int block_dim_x = strtol(block_dim_x_string, NULL, 10);
-    int block_dim_y = strtol(block_dim_y_string, NULL, 10);
-    assert((block_dim_x > 1) && "Error: block_dim_x must be larger than 1");
-    assert((block_dim_y > 1) && "Error: block_dim_y must be larger than 1");
-    assert(is_power_of_2(block_dim_x) && "Error: block_dim_x must be a power of 2");
-    assert(is_power_of_2(block_dim_y) && "Error: block_dim_y must be a power of 2");
-    assert((((block_dim_x * block_dim_y) % cuda_device_properties.warpSize) == 0) && "Error: Must use thread count which is a multiple of warpSize");
-    assert(((block_dim_x * block_dim_y) <= cuda_device_properties.maxThreadsPerBlock) && "Error: Using more threads than permitted by maxThreadsPerBlock");
+    int block_size = strtol(block_size_string, NULL, 10);
+    int grid_size = strtol(grid_size_string, NULL, 10);
+    assert((block_size >= 1) && "Error: block_size must be >= 1");
+    assert((grid_size >= 1) && "Error: grid_size must be >= 1");
+    assert(((block_size % cuda_device_properties.warpSize) == 0) && "Error: block_size must be a multiple of warpSize");
+    assert((block_size <= cuda_device_properties.maxThreadsPerBlock) && "Error: block_size is larger than maxThreadsPerBlock");
 
-    int grid_dim_x = (int) ceil(((*src_bitmap)->width) / ((double) block_dim_x));
-    int grid_dim_y = (int) ceil(((*src_bitmap)->height)/ ((double) block_dim_y));
-    block_dim->x = block_dim_x;
-    block_dim->y = block_dim_y;
+    block_dim->x = block_size;
+    block_dim->y = 1;
     block_dim->z = 1;
-    grid_dim->x = grid_dim_x;
-    grid_dim->y = grid_dim_y;
+    grid_dim->x = grid_size;
+    grid_dim->y = 1;
     grid_dim->z = 1;
 
     printf("image information\n");
@@ -116,10 +112,8 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
     printf("cuda runtime information\n");
     printf("========================\n");
-    printf("    block dim X = %u\n", block_dim_x);
-    printf("    block dim Y = %u\n", block_dim_y);
-    printf("    grid dim X = %u\n", grid_dim_x);
-    printf("    grid dim Y = %u\n", grid_dim_y);
+    printf("    block size = %u\n", block_size);
+    printf("    grid size = %u\n", grid_size);
     printf("\n");
 }
 

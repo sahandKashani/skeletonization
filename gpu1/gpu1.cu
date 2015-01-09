@@ -108,26 +108,33 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, int g_height) {
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_size = g_width * g_height;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    uint8_t NZ = black_neighbors_around(g_src, g_row, g_col, g_width, g_height);
-    uint8_t TR_P1 = wb_transitions_around(g_src, g_row, g_col, g_width, g_height);
-    uint8_t TR_P2 = wb_transitions_around(g_src, g_row - 1, g_col, g_width, g_height);
-    uint8_t TR_P4 = wb_transitions_around(g_src, g_row, g_col - 1, g_width, g_height);
-    uint8_t P2 = P2_f(g_src, g_row, g_col, g_width, g_height);
-    uint8_t P4 = P4_f(g_src, g_row, g_col, g_width, g_height);
-    uint8_t P6 = P6_f(g_src, g_row, g_col, g_width, g_height);
-    uint8_t P8 = P8_f(g_src, g_row, g_col, g_width, g_height);
+    while (tid < total_size) {
+        int g_row = tid / g_width;
+        int g_col = tid % g_width;
 
-    uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
-    uint8_t thinning_cond_2 = (TR_P1 == 1);
-    uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
-    uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
-    uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+        uint8_t NZ = black_neighbors_around(g_src, g_row, g_col, g_width, g_height);
+        uint8_t TR_P1 = wb_transitions_around(g_src, g_row, g_col, g_width, g_height);
+        uint8_t TR_P2 = wb_transitions_around(g_src, g_row - 1, g_col, g_width, g_height);
+        uint8_t TR_P4 = wb_transitions_around(g_src, g_row, g_col - 1, g_width, g_height);
+        uint8_t P2 = P2_f(g_src, g_row, g_col, g_width, g_height);
+        uint8_t P4 = P4_f(g_src, g_row, g_col, g_width, g_height);
+        uint8_t P6 = P6_f(g_src, g_row, g_col, g_width, g_height);
+        uint8_t P8 = P8_f(g_src, g_row, g_col, g_width, g_height);
 
-    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+        uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
+        uint8_t thinning_cond_2 = (TR_P1 == 1);
+        uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
+        uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
+        uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+
+        uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
+        global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+
+        tid += gridDim.x * blockDim.x;
+    }
 }
 
 // Computes the number of white to black transitions around a pixel.
