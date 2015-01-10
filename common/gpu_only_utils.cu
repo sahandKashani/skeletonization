@@ -30,15 +30,15 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     assert((cuda_device_count > 0) && "Error: no CUDA-capable device detected");
 
     // select a cuda-capable device
-    int cuda_device_id;
+    int cuda_device_id = cuda_device_count - 1;
     cudaDeviceProp cuda_device_properties;
     memset(&cuda_device_properties, 0, sizeof(cudaDeviceProp));
-    // Would like any cuda-capable device with compute capability 2.0 (because
-    // the compiler generates code with abnormally high register usage for 1.0
-    // devices)
-    cuda_device_properties.major = 2;
-    cuda_device_properties.minor = 0;
-    gpuErrchk(cudaChooseDevice(&cuda_device_id, &cuda_device_properties));
+    // // Would like any cuda-capable device with compute capability 2.0 (because
+    // // the compiler generates code with abnormally high register usage for 1.0
+    // // devices)
+    // cuda_device_properties.major = 2;
+    // cuda_device_properties.minor = 0;
+    // gpuErrchk(cudaChooseDevice(&cuda_device_id, &cuda_device_properties));
     gpuErrchk(cudaSetDevice(cuda_device_id));
 
     // print some info about the chosen GPU
