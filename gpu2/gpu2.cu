@@ -31,7 +31,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
     int blockReductionIndex = blockIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    while (i < g_size) {
+    do {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
         s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
@@ -47,7 +47,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
 
         blockReductionIndex += gridDim.x;
         i += (gridDim.x * blockDim.x);
-    }
+    } while (i < g_size);
 }
 
 // Computes the number of black neighbors around a pixel.
