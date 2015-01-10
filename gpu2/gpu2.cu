@@ -124,16 +124,12 @@ __device__ uint8_t P9_f(uint8_t* g_data, int g_row, int g_col, int g_width, int 
     return global_mem_read(g_data, g_row - 1, g_col + 1, g_width, g_height);
 }
 
-__global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_width, int g_height) {
-    int total_size = g_width * g_height;
+__global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_size) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    while (tid < total_size) {
-        int g_row = tid / g_width;
-        int g_col = tid % g_width;
-
-        uint8_t write_data = (global_mem_read(g_in_1, g_row, g_col, g_width, g_height) == global_mem_read(g_in_2, g_row, g_col, g_width, g_height));
-        global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
+    while (tid < g_size) {
+        uint8_t write_data = (g_in_1[tid] == g_in_2[tid]);
+        g_out[tid] = write_data;
 
         tid += (gridDim.x * blockDim.x);
     }
@@ -161,7 +157,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height);
+        pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
