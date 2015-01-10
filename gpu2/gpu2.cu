@@ -77,11 +77,11 @@ __device__ uint8_t block_and_reduce(uint8_t* s_data) {
     return s_data[0];
 }
 
-__device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
+__device__ uint8_t safe_global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
     return is_outside_image(g_row, g_col, g_width, g_height) ? BINARY_WHITE : g_data[g_row * g_width + g_col];
 }
 
-__device__ void global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
+__device__ void safe_global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
     if (!is_outside_image(g_row, g_col, g_width, g_height)) {
         g_data[g_row * g_width + g_col] = write_data;
     }
@@ -92,35 +92,35 @@ __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_hei
 }
 
 __device__ uint8_t P2_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row - 1, g_col, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row - 1, g_col, g_width, g_height);
 }
 
 __device__ uint8_t P3_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row - 1, g_col - 1, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row - 1, g_col - 1, g_width, g_height);
 }
 
 __device__ uint8_t P4_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row, g_col - 1, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row, g_col - 1, g_width, g_height);
 }
 
 __device__ uint8_t P5_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row + 1, g_col - 1, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row + 1, g_col - 1, g_width, g_height);
 }
 
 __device__ uint8_t P6_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row + 1, g_col, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row + 1, g_col, g_width, g_height);
 }
 
 __device__ uint8_t P7_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row + 1, g_col + 1, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row + 1, g_col + 1, g_width, g_height);
 }
 
 __device__ uint8_t P8_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row, g_col + 1, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row, g_col + 1, g_width, g_height);
 }
 
 __device__ uint8_t P9_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return global_mem_read(g_data, g_row - 1, g_col + 1, g_width, g_height);
+    return safe_global_mem_read(g_data, g_row - 1, g_col + 1, g_width, g_height);
 }
 
 __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_size) {
@@ -205,8 +205,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
         uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-        uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
-        global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+        uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * safe_global_mem_read(g_src, g_row, g_col, g_width, g_height));
+        safe_global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
 
         tid += (gridDim.x * blockDim.x);
     }
