@@ -197,7 +197,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     // send data to device
     gpuErrchk(cudaMemcpy(g_src_data, (*src_bitmap)->data, g_data_size, cudaMemcpyHostToDevice));
 
-    uint8_t are_identical_bitmaps = 0;
+    // uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
     do {
         int skeletonize_pass_shared_mem_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (1 + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
@@ -205,24 +205,29 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height);
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize());
+        // pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height);
+        // gpuErrchk(cudaPeekAtLastError());
+        // gpuErrchk(cudaDeviceSynchronize());
 
-        and_reduction(g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
+        // and_reduction(g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
 
-        // bring reduced bitmap equality information back from device
-        gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+        // // bring reduced bitmap equality information back from device
+        // gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+
+        // bring data back from device
+        gpuErrchk(cudaMemcpy((*src_bitmap)->data, g_src_data, g_data_size, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy((*dst_bitmap)->data, g_dst_data, g_data_size, cudaMemcpyDeviceToHost));
 
         swap_bitmaps((void**) &g_src_data, (void**) &g_dst_data);
 
         iterations++;
         printf(".");
         fflush(stdout);
-    } while (!are_identical_bitmaps);
+    } while (!are_identical_bitmaps(*src_bitmap, *dst_bitmap));
+    // } while (!are_identical_bitmaps);
 
-    // bring dst_bitmap back from device
-    gpuErrchk(cudaMemcpy((*dst_bitmap)->data, g_dst_data, g_data_size, cudaMemcpyDeviceToHost));
+    // // bring dst_bitmap back from device
+    // gpuErrchk(cudaMemcpy((*dst_bitmap)->data, g_dst_data, g_data_size, cudaMemcpyDeviceToHost));
 
     // free memory on device
     gpuErrchk(cudaFree(g_src_data));
