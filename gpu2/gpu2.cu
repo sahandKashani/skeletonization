@@ -128,9 +128,7 @@ __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out,
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     while (tid < g_size) {
-        uint8_t write_data = (g_in_1[tid] == g_in_2[tid]);
-        g_out[tid] = write_data;
-
+        g_out[tid] = (g_in_1[tid] == g_in_2[tid]);
         tid += (gridDim.x * blockDim.x);
     }
 }
