@@ -38,11 +38,11 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
         __syncthreads();
 
         // do reduction in shared memory
-        uint8_t write_data = block_and_reduce(s_data);
+        block_and_reduce(s_data);
 
         // write result for this block to global memory
         if (threadIdx.x == 0) {
-            g_data[blockReductionIndex] = write_data;
+            g_data[blockReductionIndex] = s_data[0];
         }
 
         blockReductionIndex += gridDim.x;
