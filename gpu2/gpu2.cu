@@ -7,12 +7,16 @@
 #include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
-void and_reduction(uint8_t* g_data, int g_size, dim3 grid_dim, dim3 block_dim) {
+void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data, int g_size, dim3 grid_dim, dim3 block_dim) {
+    pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, g_size);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
     int shared_mem_size = block_dim.x * sizeof(uint8_t);
 
-    // iterative reductions of g_data
+    // iterative reductions of g_equ_data
     do {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_data, g_size);
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_equ_data, g_size);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
@@ -154,11 +158,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height);
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize());
-
-        and_reduction(g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
+        and_reduction(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
 
         // bring reduced bitmap equality information back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
