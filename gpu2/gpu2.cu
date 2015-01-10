@@ -29,20 +29,19 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
     extern __shared__ uint8_t s_data[];
 
     int blockReductionIndex = blockIdx.x;
-    int tid = threadIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     while (i < g_size) {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
-        s_data[tid] = (i < g_size) ? g_data[i] : 1;
+        s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
         __syncthreads();
 
         // do reduction in shared memory
         uint8_t write_data = block_and_reduce(s_data);
 
         // write result for this block to global memory
-        if (tid == 0) {
+        if (threadIdx.x == 0) {
             g_data[blockReductionIndex] = write_data;
         }
 
