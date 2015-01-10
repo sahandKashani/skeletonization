@@ -7,43 +7,47 @@
 #include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
-void and_reduction(uint8_t* g_data, int g_width, int g_height, dim3 grid_dim, dim3 block_dim) {
-    int shared_mem_size = block_dim.x * block_dim.y * sizeof(uint8_t);
+void and_reduction(uint8_t* g_data, int g_size, dim3 grid_dim, dim3 block_dim) {
+    int shared_mem_size = block_dim.x * sizeof(uint8_t);
 
     // iterative reductions of g_data
-    do {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_data, g_width, g_height);
+    while (g_size > block_dim.x) {
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_data, g_size);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        g_width = grid_dim.x;
-        g_height = grid_dim.y;
-        grid_dim.x = ceil(grid_dim.x / ((double) block_dim.x));
-        grid_dim.y = ceil(grid_dim.y / ((double) block_dim.y));
-    } while ((g_width * g_height) != 1);
+        g_size = ceil(g_size / ((double) block_dim.x));
+    };
+
+    and_reduction<<<1, block_dim, shared_mem_size>>>(g_data, g_size);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
 }
 
-// Adapted for 2D arrays from Nvidia cuda SDK samples
-__global__ void and_reduction(uint8_t* g_data, int g_width, int g_height) {
+__global__ void and_reduction(uint8_t* g_data, int g_size) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
+    int blockReductionIndex = blockIdx.x;
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int tid = threadIdx.y * blockDim.x + threadIdx.x;
+    while (i < g_size) {
+        // Load equality values into shared memory tile. We use 1 as the default
+        // value, as it is an AND reduction
+        s_data[tid] = (i < g_size) ? g_data[i] : 1;
+        __syncthreads();
 
-    // Load equality values into shared memory tile. We use 1 as the default
-    // value, as it is an AND reduction
-    s_data[tid] = is_outside_image(g_row, g_col, g_width, g_height) ? 1 : global_mem_read(g_data, g_row, g_col, g_width, g_height);
-    __syncthreads();
+        // do reduction in shared memory
+        uint8_t write_data = block_and_reduce(s_data);
 
-    // do reduction in shared memory
-    uint8_t write_data = block_and_reduce(s_data);
+        // write result for this block to global memory
+        if (tid == 0) {
+            g_data[blockReductionIndex] = write_data;
+        }
 
-    // write result for this block to global memory
-    if (tid == 0) {
-        global_mem_write(g_data, blockIdx.y, blockIdx.x, gridDim.x, gridDim.y, write_data);
+        blockReductionIndex += gridDim.x;
+        i += (gridDim.x * blockDim.x);
     }
 }
 
@@ -64,11 +68,9 @@ __device__ uint8_t black_neighbors_around(uint8_t* g_data, int g_row, int g_col,
 }
 
 __device__ uint8_t block_and_reduce(uint8_t* s_data) {
-    int tid = threadIdx.y * blockDim.x + threadIdx.x;
-
-    for (int s = ((blockDim.x * blockDim.y) / 2); s > 0; s >>= 1) {
-        if (tid < s) {
-            s_data[tid] &= s_data[tid + s];
+    for (int s = (blockDim.x / 2); s > 0; s >>= 1) {
+        if (threadIdx.x < s) {
+            s_data[threadIdx.x] &= s_data[threadIdx.x + s];
         }
         __syncthreads();
     }
@@ -123,11 +125,18 @@ __device__ uint8_t P9_f(uint8_t* g_data, int g_row, int g_col, int g_width, int 
 }
 
 __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_width, int g_height) {
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_size = g_width * g_height;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    uint8_t write_data = (global_mem_read(g_in_1, g_row, g_col, g_width, g_height) == global_mem_read(g_in_2, g_row, g_col, g_width, g_height));
-    global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
+    while (tid < total_size) {
+        int g_row = tid / g_width;
+        int g_col = tid % g_width;
+
+        uint8_t write_data = (global_mem_read(g_in_1, g_row, g_col, g_width, g_height) == global_mem_read(g_in_2, g_row, g_col, g_width, g_height));
+        global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
+
+        tid += (gridDim.x * blockDim.x);
+    }
 }
 
 // Performs an image skeletonization algorithm on the input Bitmap, and stores
@@ -156,7 +165,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        and_reduction(g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height, grid_dim, block_dim);
+        and_reduction(g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
 
         // bring reduced bitmap equality information back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
@@ -181,26 +190,33 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, int g_height) {
-    int g_row = blockIdx.y * blockDim.y + threadIdx.y;
-    int g_col = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_size = g_width * g_height;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    uint8_t NZ = black_neighbors_around(g_src, g_row, g_col, g_width, g_height);
-    uint8_t TR_P1 = wb_transitions_around(g_src, g_row, g_col, g_width, g_height);
-    uint8_t TR_P2 = wb_transitions_around(g_src, g_row - 1, g_col, g_width, g_height);
-    uint8_t TR_P4 = wb_transitions_around(g_src, g_row, g_col - 1, g_width, g_height);
-    uint8_t P2 = P2_f(g_src, g_row, g_col, g_width, g_height);
-    uint8_t P4 = P4_f(g_src, g_row, g_col, g_width, g_height);
-    uint8_t P6 = P6_f(g_src, g_row, g_col, g_width, g_height);
-    uint8_t P8 = P8_f(g_src, g_row, g_col, g_width, g_height);
+    while (tid < total_size) {
+        int g_row = tid / g_width;
+        int g_col = tid % g_width;
 
-    uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
-    uint8_t thinning_cond_2 = (TR_P1 == 1);
-    uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
-    uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
-    uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+        uint8_t NZ = black_neighbors_around(g_src, g_row, g_col, g_width, g_height);
+        uint8_t TR_P1 = wb_transitions_around(g_src, g_row, g_col, g_width, g_height);
+        uint8_t TR_P2 = wb_transitions_around(g_src, g_row - 1, g_col, g_width, g_height);
+        uint8_t TR_P4 = wb_transitions_around(g_src, g_row, g_col - 1, g_width, g_height);
+        uint8_t P2 = P2_f(g_src, g_row, g_col, g_width, g_height);
+        uint8_t P4 = P4_f(g_src, g_row, g_col, g_width, g_height);
+        uint8_t P6 = P6_f(g_src, g_row, g_col, g_width, g_height);
+        uint8_t P8 = P8_f(g_src, g_row, g_col, g_width, g_height);
 
-    uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
-    global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+        uint8_t thinning_cond_1 = ((2 <= NZ) & (NZ <= 6));
+        uint8_t thinning_cond_2 = (TR_P1 == 1);
+        uint8_t thinning_cond_3 = (((P2 & P4 & P8) == 0) | (TR_P2 != 1));
+        uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
+        uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
+
+        uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
+        global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+
+        tid += (gridDim.x * blockDim.x);
+    }
 }
 
 // Computes the number of white to black transitions around a pixel.

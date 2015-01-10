@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include "../common/lspbmp.hpp"
 
-void and_reduction(uint8_t* g_data, int g_width, int g_height, dim3 grid_dim, dim3 block_dim);
-__global__ void and_reduction(uint8_t* g_data, int g_width, int g_height);
+void and_reduction(uint8_t* g_data, int g_size, dim3 grid_dim, dim3 block_dim);
+__global__ void and_reduction(uint8_t* g_data, int g_size);
 __device__ uint8_t black_neighbors_around(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
 __device__ uint8_t block_and_reduce(uint8_t* s_data);
 __device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
