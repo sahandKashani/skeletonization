@@ -92,7 +92,6 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     int grid_size = strtol(grid_size_string, NULL, 10);
     assert((block_size >= 1) && "Error: block_size must be >= 1");
     assert((grid_size >= 1) && "Error: grid_size must be >= 1");
-    assert(((block_size % cuda_device_properties.warpSize) == 0) && "Error: block_size must be a multiple of warpSize");
     assert((block_size <= cuda_device_properties.maxThreadsPerBlock) && "Error: block_size is larger than maxThreadsPerBlock");
 
     block_dim->x = block_size;
