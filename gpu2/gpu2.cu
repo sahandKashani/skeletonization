@@ -7,31 +7,38 @@
 #include "../common/lspbmp.hpp"
 #include "../common/utils.hpp"
 
-void and_reduction(uint8_t* g_data, int g_size, dim3 grid_dim, dim3 block_dim) {
+void and_reduction(uint8_t* g_data, int g_size, dim3 grid_dim, dim3 block_dim, int iteration) {
     int shared_mem_size = block_dim.x * sizeof(uint8_t);
 
     // iterative reductions of g_data
-    while (g_size > block_dim.x) {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_data, g_size);
+    do {
+        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_data, g_size, iteration);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
         g_size = ceil(g_size / ((double) block_dim.x));
-    };
-
-    and_reduction<<<1, block_dim, shared_mem_size>>>(g_data, g_size);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
+        grid_dim.x = (g_size <= block_dim.x) ? 1 : grid_dim.x;
+    } while (g_size != 1);
 }
 
-__global__ void and_reduction(uint8_t* g_data, int g_size) {
+__global__ void and_reduction(uint8_t* g_data, int g_size, int iteration_above) {
     // shared memory for tile
     extern __shared__ uint8_t s_data[];
 
     int blockReductionIndex = blockIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    do {
+    int num_blocks_for_reduction = ceil(g_size / ((double) blockDim.x));
+    int num_iterations_for_reduction = ceil(num_blocks_for_reduction / ((double) gridDim.x));
+
+    // if (threadIdx.x == 0 && iteration_above == 0) {
+    //     printf("g_size = %d\n", g_size);
+    //     printf("num_blocks_for_reduction = %d\n", num_blocks_for_reduction);
+    //     printf("num_iterations_for_reduction = %d\n", num_iterations_for_reduction);
+    //     printf("\n");
+    // }
+
+    for (int iteration = 0; iteration < num_iterations_for_reduction; iteration++) {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
         s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
@@ -47,7 +54,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
 
         blockReductionIndex += gridDim.x;
         i += (gridDim.x * blockDim.x);
-    } while (i < g_size);
+    }
 }
 
 // Computes the number of black neighbors around a pixel.
@@ -158,7 +165,7 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        and_reduction(g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
+        and_reduction(g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim, iterations);
 
         // bring reduced bitmap equality information back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
