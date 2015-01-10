@@ -77,16 +77,6 @@ __device__ uint8_t block_and_reduce(uint8_t* s_data) {
     return s_data[0];
 }
 
-__device__ uint8_t safe_global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return is_outside_image(g_row, g_col, g_width, g_height) ? BINARY_WHITE : g_data[g_row * g_width + g_col];
-}
-
-__device__ void safe_global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
-    if (!is_outside_image(g_row, g_col, g_width, g_height)) {
-        g_data[g_row * g_width + g_col] = write_data;
-    }
-}
-
 __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_height) {
     return (g_row < 0) | (g_row > (g_height - 1)) | (g_col < 0) | (g_col > (g_width - 1));
 }
@@ -129,6 +119,16 @@ __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out,
     while (tid < g_size) {
         g_out[tid] = (g_in_1[tid] == g_in_2[tid]);
         tid += (gridDim.x * blockDim.x);
+    }
+}
+
+__device__ uint8_t safe_global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
+    return is_outside_image(g_row, g_col, g_width, g_height) ? BINARY_WHITE : g_data[g_row * g_width + g_col];
+}
+
+__device__ void safe_global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
+    if (!is_outside_image(g_row, g_col, g_width, g_height)) {
+        g_data[g_row * g_width + g_col] = write_data;
     }
 }
 
