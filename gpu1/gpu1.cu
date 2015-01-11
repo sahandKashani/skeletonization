@@ -111,7 +111,10 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
     int g_total_size = g_width * g_height;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    while (tid < g_total_size) {
+    int num_blocks_for_pass = ceil(g_total_size / ((double) blockDim.x));
+    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
+
+    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
         int g_row = tid / g_width;
         int g_col = tid % g_width;
 
