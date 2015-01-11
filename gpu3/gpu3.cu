@@ -12,19 +12,20 @@
 #define PAD_BOTTOM 1
 #define PAD_RIGHT 1
 
-void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data, int g_size, dim3 grid_dim, dim3 block_dim) {
-    pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, g_size);
+void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data, int g_width, int g_height, dim3 grid_dim, dim3 block_dim) {
+    pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, g_width, g_height);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
     // iterative reductions of g_equ_data
+    // important to have a block size which is a power of 2, because the
+    // reduction algorithm depends on this for the /2 at each iteration.
+    // This will give an odd number at some iterations if the block size is
+    // not a power of 2
+    block_dim.x = next_power_of_2(block_dim.x);
+    int and_reduction_shared_mem_size = block_dim.x * sizeof(uint8_t);
+    int g_size = g_width * g_height;
     do {
-        // important to have a block size which is a power of 2, because the
-        // reduction algorithm depends on this for the /2 at each iteration.
-        // This will give an odd number at some iterations if the block size is
-        // not a power of 2
-        block_dim.x = next_power_of_2(block_dim.x);
-        int and_reduction_shared_mem_size = block_dim.x * sizeof(uint8_t);
         and_reduction<<<grid_dim, block_dim, and_reduction_shared_mem_size>>>(g_equ_data, g_size);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
@@ -41,10 +42,10 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
     int blockReductionIndex = blockIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int num_blocks_for_reduction = ceil(g_size / ((double) blockDim.x));
-    int num_iterations_for_reduction = ceil(num_blocks_for_reduction / ((double) gridDim.x));
+    int num_blocks_for_pass = ceil(g_size / ((double) blockDim.x));
+    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
 
-    for (int iteration = 0; iteration < num_iterations_for_reduction; iteration++) {
+    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
         s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
@@ -171,11 +172,22 @@ __device__ uint8_t P9_f(uint8_t* s_data, int s_row, int s_col, int s_width) {
     return s_data[(s_row - 1) * s_width + (s_col + 1)];
 }
 
-__global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_size) {
+__global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_width, int g_height) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int g_size = g_width * g_height;
 
-    while (tid < g_size) {
-        g_out[tid] = (g_in_1[tid] == g_in_2[tid]);
+    int num_blocks_for_pass = ceil(g_size / ((double) blockDim.x));
+    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
+
+    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
+        int g_row = tid / g_width;
+        int g_col = tid % g_width;
+
+        uint8_t value_1 = safe_global_mem_read(g_in_1, g_row, g_col, g_width, g_height);
+        uint8_t value_2 = safe_global_mem_read(g_in_2, g_row, g_col, g_width, g_height);
+        uint8_t write_data = (value_1 == value_2);
+        safe_global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
+
         tid += (gridDim.x * blockDim.x);
     }
 }
@@ -205,15 +217,15 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     // send data to device
     gpuErrchk(cudaMemcpy(g_src_data, (*src_bitmap)->data, g_data_size, cudaMemcpyHostToDevice));
 
-    uint8_t are_identical_bitmaps = 0;
     int iterations = 0;
+    uint8_t are_identical_bitmaps = 0;
+    int skeletonize_pass_shared_mem_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (1 + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
     do {
-        int skeletonize_pass_shared_mem_size = (block_dim.x + PAD_LEFT + PAD_RIGHT) * (1 + PAD_TOP + PAD_BOTTOM) * sizeof(uint8_t);
         skeletonize_pass<<<grid_dim, block_dim, skeletonize_pass_shared_mem_size>>>(g_src_data, g_dst_data, (*src_bitmap)->width, (*src_bitmap)->height);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        and_reduction(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width * (*src_bitmap)->height, grid_dim, block_dim);
+        and_reduction(g_src_data, g_dst_data, g_equ_data, (*src_bitmap)->width, (*src_bitmap)->height, grid_dim, block_dim);
 
         // bring reduced bitmap equality information back from device
         gpuErrchk(cudaMemcpy(&are_identical_bitmaps, g_equ_data, 1 * sizeof(uint8_t), cudaMemcpyDeviceToHost));
@@ -241,11 +253,13 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
     // shared memory for tile
     extern __shared__ uint8_t s_src[];
 
-    int total_size = g_width * g_height;
+    int g_total_size = g_width * g_height;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // TODO : check if this while loop will create an issue with the __syncthreads done in load_s_src
-    while (tid < total_size) {
+    int num_blocks_for_pass = ceil(g_total_size / ((double) blockDim.x));
+    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
+
+    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
         int g_row = tid / g_width;
         int g_col = tid % g_width;
 
