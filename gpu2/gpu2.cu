@@ -12,11 +12,15 @@ void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
-    int shared_mem_size = block_dim.x * sizeof(uint8_t);
-
     // iterative reductions of g_equ_data
     do {
-        and_reduction<<<grid_dim, block_dim, shared_mem_size>>>(g_equ_data, g_size);
+        // important to have a block size which is a power of 2, because the
+        // reduction algorithm depends on this for the /2 at each iteration.
+        // This will give an odd number at some iterations if the block size is
+        // not a power of 2
+        block_dim.x = next_power_of_2(block_dim.x);
+        int and_reduction_shared_mem_size = block_dim.x * sizeof(uint8_t);
+        and_reduction<<<grid_dim, block_dim, and_reduction_shared_mem_size>>>(g_equ_data, g_size);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
