@@ -108,10 +108,10 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, int g_height) {
-    int total_size = g_width * g_height;
+    int g_total_size = g_width * g_height;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    while (tid < total_size) {
+    while (tid < g_total_size) {
         int g_row = tid / g_width;
         int g_col = tid % g_width;
 
