@@ -91,7 +91,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     int block_size = strtol(block_size_string, NULL, 10);
     int grid_size = strtol(grid_size_string, NULL, 10);
     assert((block_size >= 2) && "Error: block_size must be >= 2");
-    assert(is_power_of_2(block_size) && "Error: block_size must be a power of 2");
+    // assert(is_power_of_2(block_size) && "Error: block_size must be a power of 2");
     assert((grid_size >= 1) && "Error: grid_size must be >= 1");
     assert((block_size <= cuda_device_properties.maxThreadsPerBlock) && "Error: block_size is larger than maxThreadsPerBlock");
 
@@ -119,4 +119,8 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
 
 uint8_t is_power_of_2(uint8_t x) {
     return (x != 0) && ((x & (x - 1)) == 0);
+}
+
+int next_power_of_2(int x) {
+    return (int) pow(2, ceil(log(x) / log(2)));
 }
