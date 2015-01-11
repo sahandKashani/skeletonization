@@ -244,6 +244,7 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
     int total_size = g_width * g_height;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
+    // TODO : check if this while loop will create an issue with the __syncthreads done in load_s_src
     while (tid < total_size) {
         int g_row = tid / g_width;
         int g_col = tid % g_width;
