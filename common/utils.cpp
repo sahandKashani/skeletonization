@@ -122,6 +122,7 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
 
     // allocate buffer for image data with extra rows and extra columns
     Bitmap *new_image = createBitmap((*image)->width + (padding.left + padding.right), (*image)->height + (padding.top + padding.bottom), (*image)->depth);
+    assert((new_image != NULL) && "Error: could not allocate memory for new_image");
 
     // copy original data into the center of the new buffer
     for (int row = 0; row < new_image->height; row++) {
@@ -199,6 +200,7 @@ void unpad_binary_bitmap(Bitmap** image, Padding padding) {
 
     // allocate buffer for image data with less rows and less columns
     Bitmap *new_image = createBitmap((*image)->width - (padding.left + padding.right), (*image)->height - (padding.top + padding.bottom), (*image)->depth);
+    assert((new_image != NULL) && "Error: could not allocate memory for new_image");
 
     // copy data from larger image into the middle of the new buffer
     for (int row = 0; row < new_image->height; row++) {
