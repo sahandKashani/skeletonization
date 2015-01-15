@@ -6,8 +6,13 @@
 #include "lspbmp.hpp"
 #include "utils.hpp"
 
-void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap) {
+void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding_for_thread_count, Padding padding_for_borders) {
     char* dst_fname = argv[2];
+
+    // Remove extra padding that was added to the images (don't care about
+    // src_bitmap, so only need to unpad dst_bitmap)
+    unpad_binary_bitmap(dst_bitmap, padding_for_borders);
+    unpad_binary_bitmap(dst_bitmap, padding_for_thread_count);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(*dst_bitmap);
@@ -21,7 +26,7 @@ void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bit
     cudaDeviceReset();
 }
 
-void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3* grid_dim, dim3* block_dim) {
+void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding_for_thread_count, Padding* padding_for_borders, dim3* grid_dim, dim3* block_dim) {
     assert((argc == 5) && "Usage: ./<gpu_binary> <input_file_name.bmp> <output_file_name.bmp> <block_size> <grid_size>");
 
     // check for cuda-capable device
@@ -33,9 +38,7 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     int cuda_device_id = cuda_device_count - 1;
     cudaDeviceProp cuda_device_properties;
     memset(&cuda_device_properties, 0, sizeof(cudaDeviceProp));
-    // // Would like any cuda-capable device with compute capability 2.0 (because
-    // // the compiler generates code with abnormally high register usage for 1.0
-    // // devices)
+    // // Would like any cuda-capable device with compute capability 2.0
     // cuda_device_properties.major = 2;
     // cuda_device_properties.minor = 0;
     // gpuErrchk(cudaChooseDevice(&cuda_device_id, &cuda_device_properties));
@@ -115,8 +118,53 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("    block size = %u\n", block_size);
     printf("    grid size = %u\n", grid_size);
     printf("\n");
+
+    // print_bitmap(*src_bitmap);
+    // printf("\n");
+
+    // We want all threads to have work (even if it is meaningless) in order to
+    // avoid having to partially disable some warps. To do this, we keep the
+    // image width constant, but add some rows at the bottom to have enough work
+    // for all threads.
+    int num_pixels = (*src_bitmap)->width * (*src_bitmap)->height;
+    int num_threads = grid_dim->x * block_dim->x;
+    int num_pixels_to_occupy_all_threads = ceil(num_pixels / ((double) num_threads)) * num_threads;
+    int height_needed = ceil(num_pixels_to_occupy_all_threads/ ((double) (*src_bitmap)->width));
+    int num_additional_rows_needed_at_bottom = height_needed - (*src_bitmap)->height;
+    (*padding_for_thread_count).top = 0;
+    (*padding_for_thread_count).bottom = num_additional_rows_needed_at_bottom;
+    (*padding_for_thread_count).left = 0;
+    (*padding_for_thread_count).right = 0;
+    pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding_for_thread_count);
+    pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding_for_thread_count);
+
+    printf("num_pixels = %d\n", num_pixels);
+    printf("num_threads = %d\n", num_threads);
+    printf("num_pixels_to_occupy_all_threads = %d\n", num_pixels_to_occupy_all_threads);
+    printf("height_needed = %d\n", height_needed);
+    printf("num_additional_rows_needed_at_bottom = %d\n", num_additional_rows_needed_at_bottom);
+
+    // print_bitmap(*src_bitmap);
+    // printf("\n");
+
+    // Pad the binary images with pixels on each side. This will be useful when
+    // implementing the skeletonization algorithm, because the mask we use
+    // depends on P2 and P4, which also have their own window. So the pixels on
+    // the image borders will need to read "outside" the image.
+    (*padding_for_borders).top = PAD_TOP;
+    (*padding_for_borders).bottom = PAD_BOTTOM;
+    (*padding_for_borders).left = PAD_LEFT;
+    (*padding_for_borders).right = PAD_RIGHT;
+    pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding_for_borders);
+    pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding_for_borders);
+
+    print_bitmap(*src_bitmap);
+    // printf("\n");
+
+    printf("padded width = %d\n", (*src_bitmap)->width);
+    printf("padded height = %d\n", (*src_bitmap)->height);
 }
 
-uint8_t is_power_of_2(uint8_t x) {
+uint8_t is_power_of_2(int x) {
     return (x != 0) && ((x & (x - 1)) == 0);
 }

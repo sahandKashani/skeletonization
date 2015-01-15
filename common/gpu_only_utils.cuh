@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "lspbmp.hpp"
+#include "utils.hpp"
 
 #define gpuErrchk(ans) (gpuAssert((ans), __FILE__, __LINE__))
 inline void gpuAssert(cudaError_t code, const char* file, int line) {
@@ -13,8 +14,8 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
     }
 }
 
-void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap);
-void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3* grid_dim, dim3* block_dim);
-uint8_t is_power_of_2(uint8_t x);
+void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding_for_thread_count, Padding padding_for_borders);
+void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding_for_thread_count, Padding* padding_for_borders, dim3* grid_dim, dim3* block_dim);
+uint8_t is_power_of_2(int x);
 
 #endif
