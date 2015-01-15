@@ -125,15 +125,15 @@ uint8_t wb_transitions_around(uint8_t* data, int row, int col, int width) {
 int main(int argc, char** argv) {
     Bitmap* src_bitmap = NULL;
     Bitmap* dst_bitmap = NULL;
-    Padding padding;
+    Padding padding_for_borders;
 
-    cpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding);
+    cpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding_for_borders);
 
-    int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding);
+    int iterations = skeletonize(&src_bitmap, &dst_bitmap, padding_for_borders);
     printf(" %u iterations\n", iterations);
     printf("\n");
 
-    cpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, padding);
+    cpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, padding_for_borders);
 
     return EXIT_SUCCESS;
 }
