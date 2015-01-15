@@ -113,28 +113,6 @@ uint8_t is_binary_valued_grayscale_image(Bitmap* image) {
     return 1;
 }
 
-double percentage_black_pixels(Bitmap* image) {
-    int black_pixels = 0;
-    for (int row = 0; row < image->height; row++) {
-        for (int col = 0; col < image->width; col++) {
-            black_pixels += (image->data[row * image->width + col] == BINARY_BLACK);
-        }
-    }
-
-    return (black_pixels / ((double) (image->width * image->height)));
-}
-
-double percentage_white_pixels(Bitmap* image) {
-    int white_pixels = 0;
-    for (int row = 0; row < image->height; row++) {
-        for (int col = 0; col < image->width; col++) {
-            white_pixels += (image->data[row * image->width + col] == BINARY_WHITE);
-        }
-    }
-
-    return (white_pixels / ((double) (image->width * image->height)));
-}
-
 // Pads the binary image given as input with the padding values provided as
 // input. The padding value must be a binary white (0) or black (1).
 void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding) {
@@ -167,6 +145,28 @@ void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding pad
 
     free(*image);
     *image = new_image;
+}
+
+double percentage_black_pixels(Bitmap* image) {
+    int black_pixels = 0;
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
+            black_pixels += (image->data[row * image->width + col] == BINARY_BLACK);
+        }
+    }
+
+    return (black_pixels / ((double) (image->width * image->height)));
+}
+
+double percentage_white_pixels(Bitmap* image) {
+    int white_pixels = 0;
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
+            white_pixels += (image->data[row * image->width + col] == BINARY_WHITE);
+        }
+    }
+
+    return (white_pixels / ((double) (image->width * image->height)));
 }
 
 // Prints information about a bitmap image.
