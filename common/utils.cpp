@@ -135,6 +135,40 @@ double percentage_white_pixels(Bitmap* image) {
     return (white_pixels / ((double) (image->width * image->height)));
 }
 
+// Pads the binary image given as input with the padding values provided as
+// input. The padding value must be a binary white (0) or black (1).
+void pad_binary_bitmap(Bitmap** image, uint8_t binary_padding_value, Padding padding) {
+    assert(*image && "Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
+    assert((binary_padding_value == BINARY_BLACK || binary_padding_value == BINARY_WHITE) && "Must provide a binary value for padding");
+
+    // allocate buffer for image data with extra rows and extra columns
+    Bitmap *new_image = createBitmap((*image)->width + (padding.left + padding.right), (*image)->height + (padding.top + padding.bottom), (*image)->depth);
+
+    // copy original data into the center of the new buffer
+    for (int row = 0; row < new_image->height; row++) {
+        for (int col = 0; col < new_image->width; col++) {
+
+            uint8_t is_top_row_padding_zone = ((0 <= row) && (row < padding.top));
+            uint8_t is_bottom_row_padding_zone = (((new_image->height - padding.bottom) <= row) && (row <= (new_image->height-1)));
+            uint8_t is_left_col_padding_zone = ((0 <= col) && (col < padding.left));
+            uint8_t is_right_col_padding_zone = (((new_image->width - padding.right) <= col) && (col <= (new_image->width-1)));
+
+            if (is_top_row_padding_zone || is_bottom_row_padding_zone ||
+                is_left_col_padding_zone || is_right_col_padding_zone) {
+                // set the border pixels around the center image to binary_padding_value
+                new_image->data[row * (new_image->width) + col] = binary_padding_value;
+            } else {
+                // set the pixels in the center to the original image
+                new_image->data[row * (new_image->width) + col] = (*image)->data[(row-padding.top) * ((*image)->width) + (col-padding.left)];
+            }
+        }
+    }
+
+    free(*image);
+    *image = new_image;
+}
+
 // Prints information about a bitmap image.
 void print_bitmap_info(const char* fname) {
     assert(fname && "Invalid file name");
@@ -155,4 +189,24 @@ void swap_bitmaps(void** src, void** dst) {
     void* tmp = *dst;
     *dst = *src;
     *src = tmp;
+}
+
+// Unpads the image given as input by removing the amount of padding provided as
+// input.
+void unpad_binary_bitmap(Bitmap** image, Padding padding) {
+    assert(*image && "Bitmap must be non-NULL");
+    assert(is_binary_image(*image) && "Must supply a binary image as input: only black (1) and white (0) are allowed");
+
+    // allocate buffer for image data with less rows and less columns
+    Bitmap *new_image = createBitmap((*image)->width - (padding.left + padding.right), (*image)->height - (padding.top + padding.bottom), (*image)->depth);
+
+    // copy data from larger image into the middle of the new buffer
+    for (int row = 0; row < new_image->height; row++) {
+        for (int col = 0; col < new_image->width; col++) {
+            new_image->data[row * new_image->width + col] = (*image)->data[(row + padding.top) * ((*image)->width) + (col + padding.left)];
+        }
+    }
+
+    free(*image);
+    *image = new_image;
 }

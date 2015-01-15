@@ -5,8 +5,12 @@
 #include "lspbmp.hpp"
 #include "utils.hpp"
 
-void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap) {
+void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding) {
     char* dst_fname = argv[2];
+
+    // Remove extra padding that was added to the images (don't care about
+    // src_bitmap, so only need to unpad dst_bitmap)
+    unpad_binary_bitmap(dst_bitmap, padding);
 
     // save 8-bit binary-valued grayscale version of dst_bitmap to dst_fname
     binary_to_grayscale(*dst_bitmap);
@@ -18,7 +22,7 @@ void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bit
     free(*dst_bitmap);
 }
 
-void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap) {
+void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding) {
     assert((argc == 3) && "Usage: ./<cpu_binary> <input_file_name.bmp> <output_file_name.bmp>");
 
     char* src_fname = argv[1];
@@ -49,4 +53,14 @@ void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     printf("    white pixels = %d %%\n", (int) (percentage_white_pixels(*src_bitmap) * 100));
     printf("    black pixels = %d %%\n", (int) (percentage_black_pixels(*src_bitmap) * 100));
     printf("\n");
+
+    // Pad the binary images with pixels on each side. This will be useful when
+    // implementing the skeletonization algorithm, because the mask we use
+    // depends on P2 and P4, which also have their own window.
+    (*padding).top = PAD_TOP;
+    (*padding).bottom = PAD_BOTTOM;
+    (*padding).left = PAD_LEFT;
+    (*padding).right = PAD_RIGHT;
+    pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding);
+    pad_binary_bitmap(dst_bitmap, BINARY_WHITE, *padding);
 }
