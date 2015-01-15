@@ -170,6 +170,15 @@ double percentage_white_pixels(Bitmap* image) {
     return (white_pixels / ((double) (image->width * image->height)));
 }
 
+void print_bitmap(Bitmap* image) {
+    for (int row = 0; row < image->height; row++) {
+        for (int col = 0; col < image->width; col++) {
+            printf("%d ", image->data[row * image->width + col]);
+        }
+        printf("\n");
+    }
+}
+
 // Prints information about a bitmap image.
 void print_bitmap_info(const char* fname) {
     assert(fname && "Invalid file name");
