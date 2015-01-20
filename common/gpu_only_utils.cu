@@ -125,12 +125,20 @@ void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap*
     // We want all threads to have work (even if it is meaningless) in order to
     // avoid having to partially disable some warps. To do this, we keep the
     // image height constant, but add some columns on the right to have enough
-    // work for all threads.
+    // work for all threads. When this is done, we add enough rows at the bottom
+    // of the image so the whole grid has enough work to do.
     int num_blocks_per_row = ceil(((*src_bitmap)->width) / ((double) block_dim->x));
     int width_needed = num_blocks_per_row * block_dim->x;
     int num_additional_columns_needed_on_right = width_needed - (*src_bitmap)->width;
+
+    int num_pixels = width_needed * (*src_bitmap)->height;
+    int num_threads = grid_dim->x * block_dim->x;
+    int num_pixels_to_occupy_all_threads = ceil(num_pixels / ((double) num_threads)) * num_threads;
+    int height_needed = ceil(num_pixels_to_occupy_all_threads / ((double) width_needed));
+    int num_additional_rows_needed_at_bottom = height_needed - (*src_bitmap)->height;
+
     (*padding_for_thread_count).top = 0;
-    (*padding_for_thread_count).bottom = 0;
+    (*padding_for_thread_count).bottom = num_additional_rows_needed_at_bottom;
     (*padding_for_thread_count).left = 0;
     (*padding_for_thread_count).right = num_additional_columns_needed_on_right;
     pad_binary_bitmap(src_bitmap, BINARY_WHITE, *padding_for_thread_count);
