@@ -269,9 +269,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
         uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-        // uint8_t g_dst_next = (thinning_cond_ok * BINARY_WHITE) + ((1 - thinning_cond_ok) * s_src[s_row * s_width + s_col]);
-        // g_dst[g_row * g_width + g_col] = g_dst_next;
-        uint8_t g_dst_next = (thinning_cond_ok * BINARY_WHITE) + ((1 - thinning_cond_ok) * g_src[g_row * g_width + g_col]);
+        uint8_t g_dst_next = (thinning_cond_ok * BINARY_WHITE) + ((1 - thinning_cond_ok) * s_src[s_row * s_width + s_col]);
+        __syncthreads();
         g_dst[g_row * g_width + g_col] = g_dst_next;
 
         tid += (gridDim.x * blockDim.x);
