@@ -186,8 +186,8 @@ __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out,
         int g_row = (tid / g_width);
         int g_col = (tid % g_width);
 
-        uint8_t value_1 = border_global_mem_read(g_in_1, g_row, g_col, g_width, g_height);
-        uint8_t value_2 = border_global_mem_read(g_in_2, g_row, g_col, g_width, g_height);
+        uint8_t value_1 = g_in_1[g_row * g_width + g_col];
+        uint8_t value_2 = g_in_2[g_row * g_width + g_col];
         uint8_t write_data = (value_1 == value_2);
         g_out[g_row * g_width + g_col] = write_data;
 
