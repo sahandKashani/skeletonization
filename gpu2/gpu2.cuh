@@ -8,8 +8,8 @@ void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data
 __global__ void and_reduction(uint8_t* g_data, int g_size);
 __device__ uint8_t black_neighbors_around(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
 __device__ uint8_t block_and_reduce(uint8_t* s_data);
-__device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
-__device__ void global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data);
+__device__ uint8_t border_global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
+__device__ void border_global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data);
 __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_height);
 __device__ uint8_t P2_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
 __device__ uint8_t P3_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
