@@ -14,8 +14,8 @@ inline void gpuAssert(cudaError_t code, const char* file, int line) {
     }
 }
 
-void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding_for_thread_count, Padding padding_for_borders);
-void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding_for_thread_count, Padding* padding_for_borders, dim3* grid_dim, dim3* block_dim);
+void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding_for_thread_count);
+void gpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding_for_thread_count, dim3* grid_dim, dim3* block_dim);
 uint8_t is_power_of_2(int x);
 
 #endif
