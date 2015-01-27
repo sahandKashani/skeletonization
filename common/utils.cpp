@@ -173,7 +173,7 @@ double percentage_white_pixels(Bitmap* image) {
 void print_bitmap(Bitmap* image) {
     for (int row = 0; row < image->height; row++) {
         for (int col = 0; col < image->width; col++) {
-            printf("%d ", image->data[row * image->width + col]);
+            printf("%d", image->data[row * image->width + col]);
         }
         printf("\n");
     }

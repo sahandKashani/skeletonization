@@ -4,7 +4,7 @@
 #include "lspbmp.hpp"
 #include "utils.hpp"
 
-void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding);
-void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding* padding);
+void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap);
+void cpu_pre_skeletonization(int argc, char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap);
 
 #endif
