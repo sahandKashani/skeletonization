@@ -17,9 +17,9 @@ void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data
     // reduction algorithm depends on this for the /2 at each iteration.
     // This will give an odd number at some iterations if the block size is
     // not a power of 2.
-    int and_reduction_shared_mem_size = block_dim.x * sizeof(uint8_t);
     int g_size = g_width * g_height;
     do {
+        int and_reduction_shared_mem_size = block_dim.x * sizeof(uint8_t);
         and_reduction<<<grid_dim, block_dim, and_reduction_shared_mem_size>>>(g_equ_data, g_size);
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
