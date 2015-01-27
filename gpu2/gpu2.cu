@@ -86,12 +86,6 @@ __device__ uint8_t border_global_mem_read(uint8_t* g_data, int g_row, int g_col,
     return is_outside_image(g_row, g_col, g_width, g_height) ? BINARY_WHITE : g_data[g_row * g_width + g_col];
 }
 
-__device__ void border_global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
-    if (!is_outside_image(g_row, g_col, g_width, g_height)) {
-        g_data[g_row * g_width + g_col] = write_data;
-    }
-}
-
 __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_height) {
     return (g_row < 0) | (g_row > (g_height - 1)) | (g_col < 0) | (g_col > (g_width - 1));
 }
@@ -136,10 +130,10 @@ __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out,
         int g_row = (tid / g_width);
         int g_col = (tid % g_width);
 
-        uint8_t value_1 = border_global_mem_read(g_in_1, g_row, g_col, g_width, g_height);
-        uint8_t value_2 = border_global_mem_read(g_in_2, g_row, g_col, g_width, g_height);
+        uint8_t value_1 = g_in_1[g_row * g_width + g_col];
+        uint8_t value_2 = g_in_2[g_row * g_width + g_col];
         uint8_t write_data = (value_1 == value_2);
-        border_global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
+        g_out[g_row * g_width + g_col] = write_data;
 
         tid += (gridDim.x * blockDim.x);
     }
@@ -214,8 +208,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
         uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-        uint8_t g_dst_next = (thinning_cond_ok * BINARY_WHITE) + ((1 - thinning_cond_ok) * border_global_mem_read(g_src, g_row, g_col, g_width, g_height));
-        border_global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
+        uint8_t g_dst_next = (thinning_cond_ok * BINARY_WHITE) + ((1 - thinning_cond_ok) * g_src[g_row * g_width + g_col]);
+        g_dst[g_row * g_width + g_col] = g_dst_next;
 
         tid += (gridDim.x * blockDim.x);
     }
