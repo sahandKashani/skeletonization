@@ -16,7 +16,7 @@ void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data
     // important to have a block size which is a power of 2, because the
     // reduction algorithm depends on this for the /2 at each iteration.
     // This will give an odd number at some iterations if the block size is
-    // not a power of 2
+    // not a power of 2.
     int and_reduction_shared_mem_size = block_dim.x * sizeof(uint8_t);
     int g_size = g_width * g_height;
     do {
@@ -36,10 +36,7 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
     int blockReductionIndex = blockIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int num_blocks_for_pass = ceil(g_size / ((double) blockDim.x));
-    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
-
-    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
+    while (i < g_size) {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
         s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
@@ -85,69 +82,66 @@ __device__ uint8_t block_and_reduce(uint8_t* s_data) {
     return s_data[0];
 }
 
+__device__ uint8_t global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
+    return is_outside_image(g_row, g_col, g_width, g_height) ? BINARY_WHITE : g_data[g_row * g_width + g_col];
+}
+
+__device__ void global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
+    if (!is_outside_image(g_row, g_col, g_width, g_height)) {
+        g_data[g_row * g_width + g_col] = write_data;
+    }
+}
+
 __device__ uint8_t is_outside_image(int g_row, int g_col, int g_width, int g_height) {
     return (g_row < 0) | (g_row > (g_height - 1)) | (g_col < 0) | (g_col > (g_width - 1));
 }
 
 __device__ uint8_t P2_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row - 1, g_col, g_width, g_height);
+    return global_mem_read(g_data, g_row - 1, g_col, g_width, g_height);
 }
 
 __device__ uint8_t P3_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row - 1, g_col - 1, g_width, g_height);
+    return global_mem_read(g_data, g_row - 1, g_col - 1, g_width, g_height);
 }
 
 __device__ uint8_t P4_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row, g_col - 1, g_width, g_height);
+    return global_mem_read(g_data, g_row, g_col - 1, g_width, g_height);
 }
 
 __device__ uint8_t P5_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row + 1, g_col - 1, g_width, g_height);
+    return global_mem_read(g_data, g_row + 1, g_col - 1, g_width, g_height);
 }
 
 __device__ uint8_t P6_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row + 1, g_col, g_width, g_height);
+    return global_mem_read(g_data, g_row + 1, g_col, g_width, g_height);
 }
 
 __device__ uint8_t P7_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row + 1, g_col + 1, g_width, g_height);
+    return global_mem_read(g_data, g_row + 1, g_col + 1, g_width, g_height);
 }
 
 __device__ uint8_t P8_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row, g_col + 1, g_width, g_height);
+    return global_mem_read(g_data, g_row, g_col + 1, g_width, g_height);
 }
 
 __device__ uint8_t P9_f(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return safe_global_mem_read(g_data, g_row - 1, g_col + 1, g_width, g_height);
+    return global_mem_read(g_data, g_row - 1, g_col + 1, g_width, g_height);
 }
 
 __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out, int g_width, int g_height) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int g_size = g_width * g_height;
 
-    int num_blocks_for_pass = ceil(g_size / ((double) blockDim.x));
-    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
+    while (tid < g_size) {
+        int g_row = (tid / g_width);
+        int g_col = (tid % g_width);
 
-    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
-        int g_row = tid / g_width;
-        int g_col = tid % g_width;
-
-        uint8_t value_1 = safe_global_mem_read(g_in_1, g_row, g_col, g_width, g_height);
-        uint8_t value_2 = safe_global_mem_read(g_in_2, g_row, g_col, g_width, g_height);
+        uint8_t value_1 = global_mem_read(g_in_1, g_row, g_col, g_width, g_height);
+        uint8_t value_2 = global_mem_read(g_in_2, g_row, g_col, g_width, g_height);
         uint8_t write_data = (value_1 == value_2);
-        safe_global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
+        global_mem_write(g_out, g_row, g_col, g_width, g_height, write_data);
 
         tid += (gridDim.x * blockDim.x);
-    }
-}
-
-__device__ uint8_t safe_global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {
-    return is_outside_image(g_row, g_col, g_width, g_height) ? BINARY_WHITE : g_data[g_row * g_width + g_col];
-}
-
-__device__ void safe_global_mem_write(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height, uint8_t write_data) {
-    if (!is_outside_image(g_row, g_col, g_width, g_height)) {
-        g_data[g_row * g_width + g_col] = write_data;
     }
 }
 
@@ -198,15 +192,12 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
 
 // Performs 1 iteration of the thinning algorithm.
 __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, int g_height) {
-    int g_total_size = g_width * g_height;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int g_size = g_width * g_height;
 
-    int num_blocks_for_pass = ceil(g_total_size / ((double) blockDim.x));
-    int num_iterations_for_pass = ceil(num_blocks_for_pass / ((double) gridDim.x));
-
-    for (int iteration = 0; iteration < num_iterations_for_pass; iteration++) {
-        int g_row = tid / g_width;
-        int g_col = tid % g_width;
+    while (tid < g_size) {
+        int g_row = (tid / g_width);
+        int g_col = (tid % g_width);
 
         uint8_t NZ = black_neighbors_around(g_src, g_row, g_col, g_width, g_height);
         uint8_t TR_P1 = wb_transitions_around(g_src, g_row, g_col, g_width, g_height);
@@ -223,8 +214,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
         uint8_t thinning_cond_4 = (((P2 & P4 & P6) == 0) | (TR_P4 != 1));
         uint8_t thinning_cond_ok = thinning_cond_1 & thinning_cond_2 & thinning_cond_3 & thinning_cond_4;
 
-        uint8_t write_data = BINARY_WHITE + ((1 - thinning_cond_ok) * safe_global_mem_read(g_src, g_row, g_col, g_width, g_height));
-        safe_global_mem_write(g_dst, g_row, g_col, g_width, g_height, write_data);
+        uint8_t g_dst_next = (thinning_cond_ok * BINARY_WHITE) + ((1 - thinning_cond_ok) * global_mem_read(g_src, g_row, g_col, g_width, g_height));
+        global_mem_write(g_dst, g_row, g_col, g_width, g_height, g_dst_next);
 
         tid += (gridDim.x * blockDim.x);
     }
@@ -249,16 +240,17 @@ __device__ uint8_t wb_transitions_around(uint8_t* g_data, int g_row, int g_col, 
 int main(int argc, char** argv) {
     Bitmap* src_bitmap = NULL;
     Bitmap* dst_bitmap = NULL;
+    Padding padding_for_thread_count;
     dim3 grid_dim;
     dim3 block_dim;
 
-    gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &grid_dim, &block_dim);
+    gpu_pre_skeletonization(argc, argv, &src_bitmap, &dst_bitmap, &padding_for_thread_count, &grid_dim, &block_dim);
 
     int iterations = skeletonize(&src_bitmap, &dst_bitmap, grid_dim, block_dim);
     printf(" %u iterations\n", iterations);
     printf("\n");
 
-    gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap);
+    gpu_post_skeletonization(argv, &src_bitmap, &dst_bitmap, padding_for_thread_count);
 
     return EXIT_SUCCESS;
 }
