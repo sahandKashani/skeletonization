@@ -192,11 +192,6 @@ int skeletonize(Bitmap** src_bitmap, Bitmap** dst_bitmap, dim3 grid_dim, dim3 bl
     int g_equ_size = ceil(((*src_bitmap)->width * (*src_bitmap)->height) / ((double) block_dim.x));
     gpuErrchk(cudaMalloc((void**) &g_equ_data, g_equ_size));
 
-    // dim3 g_equ_grid_dim;
-    // g_equ_grid_dim.x = ceil(g_equ_size / ((double) block_dim.x));
-    // g_equ_grid_dim.y = 1;
-    // g_equ_grid_dim.z = 1;
-
     // send data to device
     gpuErrchk(cudaMemcpy(g_src_data, (*src_bitmap)->data, g_data_size, cudaMemcpyHostToDevice));
 
