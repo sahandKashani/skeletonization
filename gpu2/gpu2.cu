@@ -36,7 +36,8 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
     int blockReductionIndex = blockIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    while (i < g_size) {
+    int num_iterations_needed = ceil(g_size / ((double) (blockDim.x * gridDim.x)));
+    for (int iteration = 0; iteration < num_iterations_needed; iteration++) {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
         s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
@@ -126,7 +127,8 @@ __global__ void pixel_equality(uint8_t* g_in_1, uint8_t* g_in_2, uint8_t* g_out,
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int g_size = g_width * g_height;
 
-    while (tid < g_size) {
+    int num_iterations_needed = ceil(g_size / ((double) (blockDim.x * gridDim.x)));
+    for (int iteration = 0; iteration < num_iterations_needed; iteration++) {
         int g_row = (tid / g_width);
         int g_col = (tid % g_width);
 
@@ -189,7 +191,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, int g_width, in
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int g_size = g_width * g_height;
 
-    while (tid < g_size) {
+    int num_iterations_needed = ceil(g_size / ((double) (blockDim.x * gridDim.x)));
+    for (int iteration = 0; iteration < num_iterations_needed; iteration++) {
         int g_row = (tid / g_width);
         int g_col = (tid % g_width);
 
