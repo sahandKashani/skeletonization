@@ -36,7 +36,8 @@ __global__ void and_reduction(uint8_t* g_data, int g_size) {
     int blockReductionIndex = blockIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    while (i < g_size) {
+    int num_iterations_needed = ceil(g_size / ((double) (blockDim.x * gridDim.x)));
+    for (int iteration = 0; iteration < num_iterations_needed; iteration++) {
         // Load equality values into shared memory tile. We use 1 as the default
         // value, as it is an AND reduction
         s_data[threadIdx.x] = (i < g_size) ? g_data[i] : 1;
@@ -249,7 +250,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
 
     int g_size = g_src_width * g_src_height;
 
-    while (tid < g_size) {
+    int num_iterations_needed = ceil(g_size / ((double) (blockDim.x * gridDim.x)));
+    for (int iteration = 0; iteration < num_iterations_needed; iteration++) {
         int g_src_row = (tid / g_src_width);
         int g_src_col = (tid % g_src_width);
 
