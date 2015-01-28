@@ -245,6 +245,8 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
     uint8_t* s_equ = &s_data[(blockDim.x + PAD_LEFT + PAD_RIGHT) * (1 + PAD_TOP + PAD_BOTTOM)];
 
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int currentBlockIndex = blockIdx.x;
+
     int g_size = g_src_width * g_src_height;
 
     while (tid < g_size) {
@@ -292,10 +294,11 @@ __global__ void skeletonize_pass(uint8_t* g_src, uint8_t* g_dst, uint8_t* g_equ,
             __syncthreads();
             uint8_t g_equ_next = block_and_reduce(s_equ);
             if (s_equ_col == 0) {
-                g_equ[blockIdx.x] = g_equ_next;
+                g_equ[currentBlockIndex] = g_equ_next;
             }
         }
 
+        currentBlockIndex += gridDim.x;
         tid += (gridDim.x * blockDim.x);
     }
 }
