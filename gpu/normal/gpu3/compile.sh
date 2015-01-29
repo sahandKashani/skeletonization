@@ -10,7 +10,7 @@ nvcc \
 -gencode=arch=compute_30,code=sm_30 \
 -gencode=arch=compute_35,code=sm_35 \
 -gencode=arch=compute_35,code=compute_35 \
-gpu3.cu ../common/gpu_only_utils.cu ../common/lspbmp.cpp ../common/utils.cpp \
+gpu3.cu ../common/gpu_only_utils.cu ../../../common/lspbmp.cpp ../../../common/utils.cpp \
 -O3 \
--o ../../bin/gpu3 \
+-o ../../../../bin/gpu3_normal \
 --compiler-options "-g -O3"
