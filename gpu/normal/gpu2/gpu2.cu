@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "gpu2.cuh"
 #include "../common/gpu_only_utils.cuh"
-#include "../common/lspbmp.hpp"
-#include "../common/utils.hpp"
+#include "../../../common/lspbmp.hpp"
+#include "../../../common/utils.hpp"
 
 void and_reduction(uint8_t* g_src_data, uint8_t* g_dst_data, uint8_t* g_equ_data, int g_width, int g_height, dim3 grid_dim, dim3 block_dim) {
     pixel_equality<<<grid_dim, block_dim>>>(g_src_data, g_dst_data, g_equ_data, g_width, g_height);
