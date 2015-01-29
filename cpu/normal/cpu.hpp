@@ -2,8 +2,8 @@
 #define CPU_HPP
 
 #include <stdint.h>
-#include "../common/lspbmp.hpp"
-#include "../common/utils.hpp"
+#include "../../common/lspbmp.hpp"
+#include "../../common/utils.hpp"
 
 uint8_t black_neighbors_around(uint8_t* data, int row, int col, int width, int height);
 uint8_t P2_f(uint8_t* data, int row, int col, int width, int height);

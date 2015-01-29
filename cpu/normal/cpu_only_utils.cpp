@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cpu_only_utils.hpp"
-#include "lspbmp.hpp"
-#include "utils.hpp"
+#include "../../common/lspbmp.hpp"
+#include "../../common/utils.hpp"
 
 void cpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap) {
     char* dst_fname = argv[2];

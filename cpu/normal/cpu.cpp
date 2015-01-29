@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cpu.hpp"
-#include "../common/cpu_only_utils.hpp"
-#include "../common/lspbmp.hpp"
-#include "../common/utils.hpp"
+#include "cpu_only_utils.hpp"
+#include "../../common/lspbmp.hpp"
+#include "../../common/utils.hpp"
 
 // Computes the number of black neighbors around a pixel.
 uint8_t black_neighbors_around(uint8_t* data, int row, int col, int width, int height) {
