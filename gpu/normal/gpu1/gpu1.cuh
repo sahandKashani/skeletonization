@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include "../../../common/lspbmp.hpp"
-#include "../../../common/utils.hpp"
 
 __device__ uint8_t black_neighbors_around(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
 __device__ uint8_t border_global_mem_read(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height);
