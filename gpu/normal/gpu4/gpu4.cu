@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "gpu4.cuh"
 #include "../common/gpu_only_utils.cuh"
-#include "../common/lspbmp.hpp"
-#include "../common/utils.hpp"
+#include "../../../common/lspbmp.hpp"
+#include "../../../common/utils.hpp"
 
 #define PAD_TOP (2)
 #define PAD_LEFT (2)
