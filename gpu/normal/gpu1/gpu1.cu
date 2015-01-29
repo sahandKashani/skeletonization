@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "gpu1.cuh"
 #include "../common/gpu_only_utils.cuh"
-#include "../common/lspbmp.hpp"
-#include "../common/utils.hpp"
+#include "../../../common/lspbmp.hpp"
+#include "../../../common/utils.hpp"
 
 // Computes the number of black neighbors around a pixel.
 __device__ uint8_t black_neighbors_around(uint8_t* g_data, int g_row, int g_col, int g_width, int g_height) {

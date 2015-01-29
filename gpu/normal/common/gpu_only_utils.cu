@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "gpu_only_utils.cuh"
-#include "lspbmp.hpp"
-#include "utils.hpp"
+#include "../../../common/lspbmp.hpp"
+#include "../../../common/utils.hpp"
 
 void gpu_post_skeletonization(char** argv, Bitmap** src_bitmap, Bitmap** dst_bitmap, Padding padding_for_thread_count) {
     char* dst_fname = argv[2];
